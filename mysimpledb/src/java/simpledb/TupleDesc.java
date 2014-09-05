@@ -36,6 +36,7 @@ public class TupleDesc implements Serializable {
     }
 
     private static final long serialVersionUID = 1L;
+    private TDItem[] items;
 
     /**
      * Create a new TupleDesc with typeAr.length fields with fields of the
@@ -44,10 +45,23 @@ public class TupleDesc implements Serializable {
      * @param typeAr  array specifying the number of and types of fields in this
      *                TupleDesc. It must contain at least one entry.
      * @param fieldAr array specifying the names of the fields. Note that names may
-     *                be null.
+     *                be null. 
      */
     public TupleDesc(Type[] typeAr, String[] fieldAr) {
-        // some code goes here
+        if (typeAr.length <= 0) {
+        	throw new RuntimeException("Empty type array");
+        }
+        int len = typeAr.length;
+        this.items = new TDItem[len];
+        for (int i = 0; i < len; i++)
+        {
+        	if (fieldAr[i] != null) {
+        		this.items[i] = new TDItem(typeAr[i], fieldAr[i]);
+        	}
+        	else {
+        		this.items[i] = new TDItem(typeAr[i], null);
+        	}
+        }
     }
 
     /**
@@ -58,15 +72,22 @@ public class TupleDesc implements Serializable {
      *               TupleDesc. It must contain at least one entry.
      */
     public TupleDesc(Type[] typeAr) {
-        // some code goes here
+        if (typeAr.length <= 0) {
+        	throw new RuntimeException("Empty type array");
+        }
+        int len = typeAr.length;
+        this.items = new TDItem[len];
+        for (int i = 0; i < len; i++)
+        {
+        	this.items[i] = new TDItem(typeAr[i], null);
+        }
     }
 
     /**
      * @return the number of fields in this TupleDesc
      */
     public int numFields() {
-        // some code goes here
-        return 0;
+        return this.items.length;
     }
 
     /**
@@ -77,8 +98,10 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public String getFieldName(int i) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        if (i < 0 || i >= this.numFields()) {
+        	throw new NoSuchElementException("No element");
+        }
+        return this.items[i].fieldName;
     }
 
     /**
@@ -90,8 +113,10 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public Type getFieldType(int i) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        if (i < 0 || i >= this.numFields()) {
+        	throw new NoSuchElementException("No element");
+        }
+        return this.items[i].fieldType;
     }
 
     /**
@@ -102,8 +127,17 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+    	for (int i = 0; i < this.numFields(); i++)
+        {
+    		if (this.items[i].fieldName == null) {
+    			continue;
+    		}
+    		else if (this.items[i].fieldName.equals(name))
+        	{
+        		return i;
+        	}
+        }
+        throw new NoSuchElementException("No index with the given field name");
     }
 
     /**
@@ -111,8 +145,9 @@ public class TupleDesc implements Serializable {
      * Note that tuples from a given TupleDesc are of a fixed size.
      */
     public int getSize() {
-        // some code goes here
-        return 0;
+    	int size = this.items[0].fieldType.getLen();
+    	int len = this.items.length;
+    	return size * len;
     }
 
     /**
@@ -124,8 +159,24 @@ public class TupleDesc implements Serializable {
      * @return the new TupleDesc
      */
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
-        // some code goes here
-        return null;
+        int len1 = td1.numFields();
+        int len2 = td2.numFields();
+        
+        Type[] types = new Type[len1 + len2];
+        String[] fields = new String[len1 + len2];
+        
+        for (int i = 0; i < len1; i ++) {
+        	types[i] = td1.getFieldType(i);
+        	fields[i] = td1.getFieldName(i);
+        }
+        int i = 0;
+        for (int j = len1; j < len1 + len2; j++) {
+        	types[j] = td2.getFieldType(i);
+        	fields[j] = td2.getFieldName(i);
+        	i++;
+        }
+        
+        return new TupleDesc(types, fields);
     }
 
     /**
@@ -137,8 +188,20 @@ public class TupleDesc implements Serializable {
      * @return true if the object is equal to this TupleDesc.
      */
     public boolean equals(Object o) {
-        // some code goes here
-        return false;
+    	if (!(o instanceof TupleDesc)) {
+    		return false;
+    	}
+    	TupleDesc td = (TupleDesc)o;
+    	
+    	if (td.numFields() != this.items.length) {
+    		return false;
+    	}
+    	for (int i = 0; i < this.items.length; i++) {
+        	if (!(this.getFieldType(i).equals(td.getFieldType(i)))) {
+        		return false;
+        	}
+        }
+    	return true;
     }
 
     public int hashCode() {
@@ -154,8 +217,16 @@ public class TupleDesc implements Serializable {
      * @return String describing this descriptor.
      */
     public String toString() {
-        // some code goes here
-        return "";
+        String str = "";
+    	for (int i = 0; i < this.items.length; i++) {
+        	if (this.getFieldName(i) == null) {
+        		str += "(" + this.getFieldType(i).toString() + "), ";
+        	}
+        	else {
+        		str += this.getFieldName(i) + "(" + this.getFieldType(i).toString() + "), ";
+        	}	
+    	}
+        return str.substring(0, str.length()-2);
     }
 
     /**
@@ -163,8 +234,7 @@ public class TupleDesc implements Serializable {
      * that are included in this TupleDesc
      */
     public Iterator<TDItem> iterator() {
-        // some code goes here
-        return null;
+    	 return Arrays.asList(this.items).iterator();
     }
 
 }

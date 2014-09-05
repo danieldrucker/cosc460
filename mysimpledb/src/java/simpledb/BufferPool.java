@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,6 +30,9 @@ public class BufferPool {
      * constructor instead.
      */
     public static final int DEFAULT_PAGES = 50;
+    
+    private int pageLimit;
+    private ConcurrentHashMap<PageId,Page> bp;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -36,7 +40,8 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
+        this.pageLimit = numPages;
+        this.bp = new ConcurrentHashMap<PageId,Page>();
     }
 
     public static int getPageSize() {
@@ -63,10 +68,20 @@ public class BufferPool {
      * @param pid  the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-            throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
+        if (this.bp.containsKey(pid)) {
+        	return this.bp.get(pid);
+        } else {
+        	Catalog c = Database.getCatalog();
+        	DbFile f = c.getDatabaseFile(pid.getTableId());
+        	Page p = f.readPage(pid);
+        	if (this.bp.size() >= this.pageLimit) {
+        		throw new DbException("bp full");
+        	} else {
+        		this.bp.put(pid, p);
+        	}
+        	return p;
+        }
     }
 
     /**

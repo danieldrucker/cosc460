@@ -1,8 +1,8 @@
 package simpledb;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.*;
+
 
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
@@ -12,6 +12,10 @@ import java.util.Iterator;
 public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    TupleDesc tupD;
+    RecordId rid;
+    Field[] fields;
+    
 
     /**
      * Create a new tuple with the specified schema (type).
@@ -20,15 +24,20 @@ public class Tuple implements Serializable {
      *           instance with at least one field.
      */
     public Tuple(TupleDesc td) {
-        // some code goes here
+        if (!(td.numFields() > 0)) {
+        	throw new RuntimeException("TupleDesc empty");
+        }
+        else {
+        	this.tupD = td;
+        	this.fields = new Field[td.numFields()];
+        }
     }
 
     /**
      * @return The TupleDesc representing the schema of this tuple.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return this.tupD;
     }
 
     /**
@@ -36,8 +45,7 @@ public class Tuple implements Serializable {
      * be null.
      */
     public RecordId getRecordId() {
-        // some code goes here
-        return null;
+        return this.rid;
     }
 
     /**
@@ -46,7 +54,7 @@ public class Tuple implements Serializable {
      * @param rid the new RecordId for this tuple.
      */
     public void setRecordId(RecordId rid) {
-        // some code goes here
+        this.rid = rid;
     }
 
     /**
@@ -56,7 +64,10 @@ public class Tuple implements Serializable {
      * @param f new value for the field.
      */
     public void setField(int i, Field f) {
-        // some code goes here
+        if (i < 0 || i >= this.fields.length) {
+        	throw new NoSuchElementException("No element");
+        }
+        this.fields[i] = f;
     }
 
     /**
@@ -64,8 +75,10 @@ public class Tuple implements Serializable {
      * @return the value of the ith field, or null if it has not been set.
      */
     public Field getField(int i) {
-        // some code goes here
-        return null;
+        if (i < 0 || i >= this.fields.length) {
+        	throw new NoSuchElementException("No element");
+        }
+        return this.fields[i];
     }
 
     /**
@@ -77,8 +90,11 @@ public class Tuple implements Serializable {
      * where \t is any whitespace, except newline
      */
     public String toString() {
-        // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+    	String str = "";
+    	for (int i = 0; i < this.tupD.numFields(); i++) {
+    		System.out.println(this.tupD.getFieldName(i));
+    		str += this.tupD.getFieldName(i) + "   ";
+    	}
+    	return str;
     }
-
 }
