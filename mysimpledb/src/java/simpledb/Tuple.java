@@ -67,6 +67,9 @@ public class Tuple implements Serializable {
         if (i < 0 || i >= this.fields.length) {
         	throw new NoSuchElementException("No element");
         }
+        if (!(f.getType().equals(tupD.getFieldType(i)))) {
+        	throw new RuntimeException("Types do not match");
+        }
         this.fields[i] = f;
     }
 
@@ -92,8 +95,8 @@ public class Tuple implements Serializable {
     public String toString() {
     	String str = "";
     	for (int i = 0; i < this.tupD.numFields(); i++) {
-    		System.out.println(this.tupD.getFieldName(i));
-    		str += this.tupD.getFieldName(i) + "   ";
+    		System.out.println(this.fields[i]);
+    		str += this.fields[i] + "   ";
     	}
     	return str;
     }
