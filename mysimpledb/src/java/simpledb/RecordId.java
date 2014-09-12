@@ -52,7 +52,7 @@ public class RecordId implements Serializable {
     	}
     	RecordId r = (RecordId)o;
     	
-    	if (r.tupleno() != this.tupleno() || r.getPageId().equals(this.getPageId())) {
+    	if (r.hashCode() != this.hashCode()) {
     		return false;
     	}
     	
