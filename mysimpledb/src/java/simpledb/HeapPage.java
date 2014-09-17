@@ -242,8 +242,19 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        if (t.getRecordId() == null){
+            throw new DbException("page is already empty");
+        }
+        if (!(this.pid.equals(t.getRecordId().getPageId()))){
+            throw new DbException("this tuple is not on the page");
+        }
+        int tupNo = t.getRecordId().tupleno();
+        if (!(this.isSlotUsed(tupNo))){
+            throw new DbException("this tuple slot is already empty");
+        } else {
+            this.markSlotUsed(tupNo, false);
+            t.setRecordId(null);    
+        }
     }
 
     /**
@@ -279,23 +290,7 @@ public class HeapPage implements Page {
 
     /**
      * Returns the number of empty slots on this page.
-  
-    public int getNumEmptySlots() {
-    	int empty = 0;
-    	for (int i = 0; i < this.header.length; i++) {
-    		for (int j = 0; j < 8; i++) {
-    			if (i == this.header.length-1 && j >= this.numSlots % 8) {
-    				break;
-    			}
-    			if ((this.header[i] >> j & 1) == 0) {
-    				empty++;
-    			}
-    		}
-    	}
-    	return empty;
-    }
     */
-    
     public int getNumEmptySlots() {
     	int empty = 0;
     	for (int i = 0; i < this.numSlots; i++) {
@@ -319,8 +314,18 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
+        int index = (int)Math.floor(i/8);
+        int bit = (i % 8);
+        if (value){
+            int temp = this.header[index] >> bit;
+            temp = temp|1;
+            temp = temp << bit;
+            this.header[index] = (byte) (this.header[index]|temp);
+        } else {
+            int x = 1 << bit;
+            x = ~x;
+            this.header[index] = (byte) (this.header[index] & x);
+        }
     }
 
     /**
