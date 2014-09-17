@@ -168,7 +168,7 @@ public class HeapFile implements DbFile {
         	if (this.it.hasNext()) {
         		return true;
         	}
-        	if (this.currPage + 1 < this.numPage) {
+        	if (this.currPage  < this.numPage) {
         		return true;
         	}
         	return false;
