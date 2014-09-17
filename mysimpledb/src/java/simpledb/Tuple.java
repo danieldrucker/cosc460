@@ -95,7 +95,6 @@ public class Tuple implements Serializable {
     public String toString() {
     	String str = "";
     	for (int i = 0; i < this.tupD.numFields(); i++) {
-    		System.out.println(this.fields[i]);
     		str += this.fields[i] + "   ";
     	}
     	return str;

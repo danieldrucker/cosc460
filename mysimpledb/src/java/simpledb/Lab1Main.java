@@ -4,7 +4,6 @@ import java.io.*;
 public class Lab1Main {
 
     public static void main(String[] argv) {
-
         // construct a 3-column table schema
         Type types[] = new Type[]{ Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE };
         String names[] = new String[]{ "field0", "field1", "field2" };
@@ -19,7 +18,7 @@ public class Lab1Main {
         // tuples via its iterator.
         TransactionId tid = new TransactionId();
         SeqScan f = new SeqScan(tid, table1.getId());
-
+       
         try {
             // and run it
             f.open();

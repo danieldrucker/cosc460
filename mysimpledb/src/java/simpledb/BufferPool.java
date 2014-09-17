@@ -69,7 +69,7 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
-        if (this.bp.containsKey(pid)) {
+    	if (this.bp.containsKey(pid)) {
         	return this.bp.get(pid);
         } else {
         	Catalog c = Database.getCatalog();

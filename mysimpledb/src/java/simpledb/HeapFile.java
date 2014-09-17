@@ -74,7 +74,8 @@ public class HeapFile implements DbFile {
             }
             input.close();
             HeapPageId hpID = (HeapPageId) pid;
-            return new HeapPage( hpID, page);
+            HeapPage p = new HeapPage(hpID, page);
+            return p;
         } catch (IOException e) {
             System.out.println("IO Exception");
         }
@@ -114,7 +115,7 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-    	return new hpIterator();
+    	return new hpIterator(tid);
     }
     
     class hpIterator implements DbFileIterator {
@@ -124,18 +125,20 @@ public class HeapFile implements DbFile {
     	private int numPage;
     	private BufferPool bp;
     	private boolean status;
+    	private TransactionId t;
 
 
-        public hpIterator() {
+        public hpIterator(TransactionId tid) {
         	this.status = false;
         	this.numPage = numPages();
         	this.currPage = 0;
         	this.bp = Database.getBufferPool();
+        	this.t = tid;
         }
         
         private void getNext() throws DbException, TransactionAbortedException {
         	HeapPageId pid = new HeapPageId(getId(), this.currPage);
-        	HeapPage p = (HeapPage) this.bp.getPage(null, pid, null);
+        	HeapPage p = (HeapPage) this.bp.getPage(this.t, pid, null);
         	this.it = p.iterator();
         	this.currPage++;
         }
