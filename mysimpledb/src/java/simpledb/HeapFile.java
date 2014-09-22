@@ -100,17 +100,38 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+    	
+    	HeapPage page;
+    	for (int i = 0; i < numPages(); i++) {
+    		page = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), i), null);
+    		if (page.getNumEmptySlots() > 0) {
+    			page.insertTuple(t);
+    	        ArrayList<Page> newPage = new ArrayList<Page>();
+    	        newPage.add(page);
+    	        return newPage;
+    		}
+    	}
+    	byte[] data = HeapPage.createEmptyPageData();
+    	page = new HeapPage(new HeapPageId(getId(), numPages()), data);
+		page.insertTuple(t);
+		writePage(page);
+        ArrayList<Page> newPage = new ArrayList<Page>();
+        newPage.add(page);
+        return newPage;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        if (t.getRecordId() != null) {
+        	throw new DbException("Not in db");
+        }
+        PageId pid = t.getRecordId().getPageId();
+        HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pid, null);
+        page.deleteTuple(t);
+        ArrayList<Page> newPage = new ArrayList<Page>();
+        newPage.add(page);
+        return newPage;
     }
 
     // see DbFile.java for javadocs
