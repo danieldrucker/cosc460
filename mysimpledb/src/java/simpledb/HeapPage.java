@@ -271,6 +271,23 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        if (this.getNumEmptySlots() <= 0) {
+            throw new DbException("page is full. No empty slots");
+        }
+        if (!(t.getTupleDesc().equals(this.td))) {
+            throw new DbException("tuple descriptors do not match");
+        }
+        for (int i = 0; i < tuples.length; i++) {
+            //check if the slot is used
+            if (!(this.isSlotUsed(i))){     
+                tuples[i] = t;
+                //updates header
+                this.markSlotUsed(i, true);
+                //sets new RecordID for the tuple in this slot
+                tuples[i].setRecordId(new RecordId(this.getId(), i));
+                break;
+            }
+        }   
     }
 
     /**

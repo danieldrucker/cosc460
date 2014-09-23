@@ -1,7 +1,7 @@
 package simpledb;
 
 import java.io.*;
-
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -146,8 +146,10 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+    	Catalog c = Database.getCatalog();
+    	DbFile f = c.getDatabaseFile(tableId);
+        ArrayList<Page> newPage = f.insertTuple(tid, t);
+        newPage.get(0).markDirty(true, tid);
     }
 
     /**
@@ -164,8 +166,11 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        int tabID = t.getRecordId().getPageId().getTableId();
+        Catalog c = Database.getCatalog();
+        DbFile f = c.getDatabaseFile(tabID);
+        ArrayList<Page> newPage = f.deleteTuple(tid, t);
+        newPage.get(0).markDirty(true, tid);
     }
 
     /**
@@ -174,8 +179,12 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        for (PageId pid : bp.keySet()) {
+        	HeapPage hp = (HeapPage)bp.get(pid);
+        	if (hp.isDirty() != null) {
+        		flushPage(pid);
+        	}
+        }
 
     }
 
@@ -198,7 +207,14 @@ public class BufferPool {
     private synchronized void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
-    }
+        DbFile f = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        HeapPage hp = (HeapPage) bp.get(pid); 
+        if (hp == null){
+            throw new IOException("page not found in BufferPool");
+        }
+        hp.markDirty(false, hp.isDirty());
+        f.writePage(hp);
+    }    
 
     /**
      * Write all pages of the specified transaction to disk.
