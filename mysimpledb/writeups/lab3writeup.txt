@@ -3,13 +3,65 @@ Report for Lab 3
 
 Answer the questions from the lab description here.  Questions 8 and 9 do not require answers.
 
-1.
-2.
-3.
-4.
-5.
+Markos Georges and Daniel Drucker
+September 24, 2014
+COSC 460
+Professor Hay
+
+Lab 3: Exercise 1
+
+1. Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, Operator, OrderBy, Project, SeqScan, and TupleIterator are the classes that implement
+the DbIterator Interface.
+
+2. Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, OderBy, and Project are the subclasses of the Operator class.
+
+3. Select - yes(Filter). Project - yes. Join - yes. Cross product - no. union - no. intersection - no. difference - yes(Aggregate).
+
+4. It can implement the DbIterator interface without a next or hasNext because Filter requires a DbIterator to be passed in as a parameter in the
+constructor and that is used to iterate through tuples. It also has a predicate that filters or "selects" out tuples. Therefore a next and hasNext
+is not needed because it is abstracted by the passing of the DbIterator as a parameter in the construction of the Filter. hasNext and next are both methods that are inherited from class simpled.Operator.
+
+5. 
+while (iterR.hasNext):
+    tup = iterR.next
+    if (tup matches predicate):
+        return tup
+return null
+
 6.
+list = []
+while (iterR.hasNext):
+    tupR = iterR.next
+    while (iterS.hasNext):
+        tupS = iterS.next
+        if (tupR and tupS match join predicate):
+            newTup = merge(tupR, tupS)
+            list.append(newTup)
+    iterS.rewind
+return list
+
 7.
+if (t1 == null):
+    if (iterR.hasNext):
+        t1 = iterR.next
+while (t1 != null):
+    while (iterS.hasNext):
+        t2 = iterS.next
+        if (t1 and t2 match join predicate):
+            newTup = merge(t1, t2)
+            return newTup
+    
+    iterS.rewind
+    if (iterR.hasNext):
+        t1 = iterR.next
+    else:
+        t1 = null
+
+return null
+
+
+
+
 
 After you complete lab 3, please answer the following questions.  
 
