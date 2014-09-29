@@ -63,8 +63,8 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
+    	System.out.println("FETCH");
     	while (this.childrenOp[0].hasNext()) {
-    		System.out.println("here");
     	    Tuple t = this.childrenOp[0].next();
     	    if (this.pred.filter(t)) {
     	        return t;
@@ -75,12 +75,12 @@ public class Filter extends Operator {
 
     @Override
     public DbIterator[] getChildren() {
-        return this.getChildren();
+        return this.childrenOp;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        this.setChildren(children);
+        this.childrenOp = children; 
     }
 
 }

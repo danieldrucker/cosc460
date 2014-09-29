@@ -149,7 +149,10 @@ public class Catalog {
         String line = "";
         String baseFolder = new File(new File(catalogFile).getAbsolutePath()).getParent();
         try {
-            BufferedReader br = new BufferedReader(new FileReader(new File(catalogFile)));
+        	File f = new File("mysimpledb/" + catalogFile);
+        	System.out.println(f.getAbsolutePath());
+            BufferedReader br = new BufferedReader(new FileReader(new File("mysimpledb/" + catalogFile)));
+
             while ((line = br.readLine()) != null) {
                 //assume line is of the format name (field type, field type, ...)
                 String name = line.substring(0, line.indexOf("(")).trim();
