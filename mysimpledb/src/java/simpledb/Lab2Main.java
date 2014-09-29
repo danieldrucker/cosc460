@@ -25,12 +25,12 @@ public class Lab2Main {
             while (f.hasNext()) {
                 Tuple tup = f.next();
                 if (((IntField) tup.getField(1)).getValue() < 3) {
-                    System.out.println("Update tuple: " + tup.toString());
-                    System.out.print("to be: ");
+                    System.out.print("Update tuple: " + tup.toString());
+                    System.out.println("to be: ");
                     table1.deleteTuple(tid, tup);
                     tup.setField(1, new IntField(3));
                     table1.insertTuple(tid, tup);
-                    System.out.print(tup.toString());
+                    System.out.println(tup.toString());
                 }              
             }
             Tuple t = new Tuple(descriptor);
@@ -40,11 +40,11 @@ public class Lab2Main {
             System.out.println("Insert Tuple: " + t.toString());
             table1.insertTuple(tid, t);
             
-            f.rewind(); 
+            f.rewind();
             System.out.println("The table now contains the following records: ");
-            
             while (f.hasNext()) {
                 Tuple tup2 = f.next();
+                System.out.print("Tuple: ");
                 System.out.println(tup2);
             }
             
