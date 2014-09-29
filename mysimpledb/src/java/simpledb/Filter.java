@@ -19,14 +19,13 @@ public class Filter extends Operator {
      */
     
     private Predicate pred;
-    private Operator childOp;
+    private DbIterator[] childrenOp;
     
     
     
     public Filter(Predicate p, DbIterator child) {
         this.pred = p;
-        this.childOp = (Operator) child;
-        
+        this.childrenOp = new DbIterator[]{child};       
         
     }
 
@@ -35,21 +34,23 @@ public class Filter extends Operator {
     }
 
     public TupleDesc getTupleDesc() {
-        return this.childOp.getTupleDesc();
+        return this.childrenOp[0].getTupleDesc();
     }
+
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        this.childOp.open();
+        super.open();
     }
 
     public void close() {
-        this.childOp.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        this.childrenOp[0].rewind();
     }
+	
 
     /**
      * AbstractDbIterator.readNext implementation. Iterates over tuples from the
@@ -62,19 +63,24 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    	while (this.childrenOp[0].hasNext()) {
+    		System.out.println("here");
+    	    Tuple t = this.childrenOp[0].next();
+    	    if (this.pred.filter(t)) {
+    	        return t;
+    	    }
+    	}
+    	return null;
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return this.getChildren();
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.setChildren(children);
     }
 
 }
