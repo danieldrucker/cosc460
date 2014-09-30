@@ -25,6 +25,24 @@ public class FilterTest extends SimpleDbTestBase {
     }
 
     /**
+     * Unit test for Filter.rewind()
+     */
+    @Test
+    public void mytest() throws Exception {
+        Predicate pred = new Predicate(0, Predicate.Op.EQUALS, TestUtil.getField(0));
+        Filter op = new Filter(pred, scan);
+        op.open();
+        System.out.println(op.getChildren()[0].hasNext());
+        System.out.println(op.hasNext());
+        Tuple n = op.next();
+        System.out.println(n.toString());
+
+        op.close();
+    }
+
+    
+    
+    /**
      * Unit test for Filter.getTupleDesc()
      */
     @Test

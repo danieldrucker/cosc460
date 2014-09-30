@@ -25,7 +25,8 @@ public class Filter extends Operator {
     
     public Filter(Predicate p, DbIterator child) {
         this.pred = p;
-        this.childrenOp = new DbIterator[]{child};       
+        this.childrenOp = new DbIterator[]{child};     
+
         
     }
 
@@ -63,7 +64,7 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-    	System.out.println("FETCH");
+    	//System.out.println("FETCH");
     	while (this.childrenOp[0].hasNext()) {
     	    Tuple t = this.childrenOp[0].next();
     	    if (this.pred.filter(t)) {

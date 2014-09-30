@@ -18,13 +18,19 @@ public class Lab3Main {
         // - a SeqScan operator on Students at the child of root
         TransactionId tid = new TransactionId();
         SeqScan scanStudents = new SeqScan(tid, Database.getCatalog().getTableId("students"));
+        
+        scanStudents.open();
+        System.out.println(scanStudents.hasNext());
+
+        
+        
         StringField alice = new StringField("alice", Type.STRING_LEN);
         Predicate p = new Predicate(1, Predicate.Op.EQUALS, alice);
         Filter filterStudents = new Filter(p, scanStudents);
         // query execution: we open the iterator of the root and iterate through results
         System.out.println("Query results:");
         filterStudents.open();
-        //System.out.println("    " + filterStudents.hasNext());
+        //System.out.println("    " + filterStudents.getChildren()[0].hasNext());
         while (filterStudents.hasNext()) {
             Tuple tup = filterStudents.next();
             System.out.println("\t"+tup);
