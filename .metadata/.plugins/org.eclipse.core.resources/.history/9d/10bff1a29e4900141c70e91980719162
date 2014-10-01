@@ -123,9 +123,8 @@ public class HeapPage implements Page {
         // if associated bit is not set, read forward to the next tuple, and
         // return null.
         if (!isSlotUsed(slotId)) {
-            for (int i = 0; i < td.getSize(); i++) {
+            for (int i = 0; i < td.getSize()-1; i++) {
                 try {
-                	System.out.println("What");
                     dis.readByte();
                 } catch (IOException e) {
                     throw new NoSuchElementException("error reading empty tuple");

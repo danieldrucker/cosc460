@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?><testrun name="FilterTest" project="mysimpledb" tests="5" started="5" failures="0" errors="0" ignored="0">
+  <testsuite name="simpledb.systemtest.FilterTest" time="0.662">
+    <testcase name="testEquals" classname="simpledb.systemtest.FilterTest" time="0.289"/>
+    <testcase name="testLessThan" classname="simpledb.systemtest.FilterTest" time="0.14"/>
+    <testcase name="testLessThanOrEq" classname="simpledb.systemtest.FilterTest" time="0.08"/>
+    <testcase name="testGreaterThan" classname="simpledb.systemtest.FilterTest" time="0.074"/>
+    <testcase name="testGreaterThanOrEq" classname="simpledb.systemtest.FilterTest" time="0.079"/>
+  </testsuite>
+</testrun>

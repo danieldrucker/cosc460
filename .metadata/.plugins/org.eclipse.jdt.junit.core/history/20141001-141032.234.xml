@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><testrun name="FilterTest (1)" project="mysimpledb" tests="7" started="7" failures="0" errors="0" ignored="0">
+  <testsuite name="simpledb.FilterTest" time="0.0">
+    <testcase name="rewind" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="mytest" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="getTupleDesc" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="filterSomeLessThan" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="filterAllLessThan" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="filterEqual" classname="simpledb.FilterTest" time="0.0"/>
+    <testcase name="filterEqualNoTuples" classname="simpledb.FilterTest" time="0.0"/>
+  </testsuite>
+</testrun>
