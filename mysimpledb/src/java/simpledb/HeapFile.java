@@ -170,6 +170,8 @@ public class HeapFile implements DbFile {
         }
         
         public void open() throws DbException, TransactionAbortedException {
+        	System.out.println("Heapfile Open");
+
         	this.getNext();
         	this.status = true;
         }

@@ -85,7 +85,7 @@ public class SeqScan implements DbIterator {
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
-    	System.out.println("~~~~");
+    	System.out.println("SeqScan");
         return it.hasNext();
     }
 

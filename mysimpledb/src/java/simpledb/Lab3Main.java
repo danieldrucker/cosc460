@@ -26,7 +26,7 @@ public class Lab3Main {
         // query execution: we open the iterator of the root and iterate through results
         System.out.println("Query results:");
         filterStudents.open();
-        System.out.println("    " + filterStudents.getChildren()[0].hasNext());
+        //System.out.println("    " + filterStudents.getChildren()[0].hasNext());
         while (filterStudents.hasNext()) {
             Tuple tup = filterStudents.next();
             System.out.println("\t"+tup);

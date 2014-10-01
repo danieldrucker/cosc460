@@ -42,10 +42,12 @@ public class Filter extends Operator {
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         super.open();
+        this.childrenOp[0].open();
     }
 
     public void close() {
         super.close();
+        this.childrenOp[0].close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
