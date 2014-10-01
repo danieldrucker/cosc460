@@ -51,6 +51,7 @@ public class Lab2Main {
             f.close();
             Database.getBufferPool().transactionComplete(tid);
         } catch (Exception e) {
+            e.printStackTrace();
             System.out.println ("Exception : " + e);
         }
     }
