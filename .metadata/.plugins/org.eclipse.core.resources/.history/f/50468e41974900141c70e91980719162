@@ -189,7 +189,7 @@ public class HeapFile implements DbFile {
         @Override
         public boolean hasNext() throws DbException, TransactionAbortedException {
         	if (!this.status) {
-            	System.out.println("HeapFile");
+            	System.out.println("DbFile");
         		return false;
         	}
         	if (this.it.hasNext()) {
