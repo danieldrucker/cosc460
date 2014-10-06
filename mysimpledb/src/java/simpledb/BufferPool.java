@@ -80,7 +80,7 @@ public class BufferPool {
             Catalog c = Database.getCatalog();
             DbFile f = c.getDatabaseFile(pid.getTableId());
             Page p = f.readPage(pid);
-            System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
+            //System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
             if (this.bp.size() >= this.pageLimit) {
             	System.out.println("Evict");
                 evictPage();

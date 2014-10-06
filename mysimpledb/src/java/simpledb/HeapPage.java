@@ -54,6 +54,7 @@ public class HeapPage implements Page {
             header[i] = dis.readByte();
 
         tuples = new Tuple[numSlots];
+        System.out.println(tuples.length);
         try {
             // allocate and read the actual records of this page
             for (int i = 0; i < tuples.length; i++)
@@ -125,7 +126,6 @@ public class HeapPage implements Page {
         if (!isSlotUsed(slotId)) {
             for (int i = 0; i < td.getSize(); i++) {
                 try {
-                	System.out.println("What");
                     dis.readByte();
                 } catch (IOException e) {
                     throw new NoSuchElementException("error reading empty tuple");
@@ -133,7 +133,6 @@ public class HeapPage implements Page {
             }
             return null;
         }
-
         // read fields in the tuple
         Tuple t = new Tuple(td);
         RecordId rid = new RecordId(pid, slotId);

@@ -19,6 +19,10 @@ public class Lab3Main {
         TransactionId tid = new TransactionId();
         SeqScan scanStudents = new SeqScan(tid, Database.getCatalog().getTableId("students"));
         
+        System.out.println(scanStudents.getTupleDesc());
+        scanStudents.open();
+        
+        
         StringField alice = new StringField("alice", Type.STRING_LEN);
         Predicate p = new Predicate(1, Predicate.Op.EQUALS, alice);
         Filter filterStudents = new Filter(p, scanStudents);
