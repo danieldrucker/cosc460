@@ -353,19 +353,42 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-    	return new myIterator(this.numSlots - this.getNumEmptySlots());
+    	return new myIterator();
     }
     
     class myIterator implements Iterator {
 
-    	private int slots;
+    	//private int slots;
         private int currIdx;
 
-        public myIterator(int s) {
-            this.slots = s;
+        public myIterator() {
             currIdx = 0;
         }
 
+        
+        
+        @Override
+        public boolean hasNext() {
+            for (int i = currIdx; i < numSlots; i++) {
+            	if (isSlotUsed(i)) {
+            		currIdx = i;
+            		return true;
+            	}
+            }
+            return false;
+        }
+
+
+        @Override
+        public Tuple next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("End of tuples");
+            }
+            int retIdx = this.currIdx;
+            this.currIdx++;
+            return tuples[retIdx];
+        }
+        /*
         @Override
         public boolean hasNext() {
             if (slots <= 0 || currIdx >= numSlots-1) {
@@ -378,7 +401,7 @@ public class HeapPage implements Page {
 
         @Override
         public Tuple next() {
-        	//System.out.println(slots);
+        	System.out.println(slots);
             if (!hasNext()) {
                 throw new NoSuchElementException("End of tuples");
             }
@@ -392,6 +415,7 @@ public class HeapPage implements Page {
             throw new RuntimeException("This should never happen");
         }
 
+		*/
         @Override
         public void remove() {
             throw new UnsupportedOperationException("my data can't be modified...  or maybe I'm just being lazy.");

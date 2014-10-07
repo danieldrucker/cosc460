@@ -23,13 +23,16 @@ public class Insert extends Operator {
     private TransactionId tid;
     private DbIterator[] childDb;
     private int tableId;
-    private int inserted = 0;
+    private int inserted;
+    private boolean canRun;
     private Tuple result;
     
     public Insert(TransactionId t, DbIterator child, int tableid)
             throws DbException {
         DbFile f = Database.getCatalog().getDatabaseFile(tableid);
         if (child.getTupleDesc().equals(f.getTupleDesc())) {
+            this.inserted = 0;
+            this.canRun = true;
             this.tid = t;
             this.tableId = tableid;
             this.childDb = new DbIterator[]{child};
@@ -74,7 +77,7 @@ public class Insert extends Operator {
      * @see BufferPool#insertTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        if (this.inserted != 0) {
+        if (!this.canRun) {
             return null;
         }
         BufferPool bp = Database.getBufferPool();
@@ -88,6 +91,7 @@ public class Insert extends Operator {
             }
         }
         this.result.setField(0, new IntField(this.inserted));
+        this.canRun = false;
         return result;
     }
 
