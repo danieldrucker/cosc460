@@ -67,21 +67,22 @@ After you complete lab 3, please answer the following questions.
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-<Replace this text with your answer>
+Markos Georges and Daniel Drucker
 
 2. What did you think of this assignment?
 
-<Replace this text with your answer>
+The assignment was fairly difficult due to many small bugs that kept our code from fully functioning.
 
 3. What was the hardest part of this assignment?
 
-<Replace this text with your answer>
+The queries were very difficult, and the debugging of code that passed previous unit and main tests but did not with the new tests.
 
 4. Describe any missing or incomplete elements of your code.
 
-<Replace this text with your answer>
+The Delete operator class is not functioning properly. We can't explain why. Also we were unable to finish all of the queries because we were pressed for time.
 
 5. Roughly how long did you spend working on this lab?
 
-<Replace this text with your answer>
+About 15 hours outside of the allotted lab hours. We found that at least half of our time was spent debugging code that, when failed,
+the jUnit Tests gave very little information on the actual problem within the code. 
 

@@ -388,34 +388,7 @@ public class HeapPage implements Page {
             this.currIdx++;
             return tuples[retIdx];
         }
-        /*
-        @Override
-        public boolean hasNext() {
-            if (slots <= 0 || currIdx >= numSlots-1) {
-            	//System.out.println("                         " + slots + "     " + currIdx + "    " + numSlots);
-                return false;
-            }
-            return true;
-        }
 
-
-        @Override
-        public Tuple next() {
-        	System.out.println(slots);
-            if (!hasNext()) {
-                throw new NoSuchElementException("End of tuples");
-            }
-            for (int i = currIdx; i < numSlots; i++) {
-            	if (isSlotUsed(i)) {
-            		currIdx = i+1;
-            		slots--;
-            		return tuples[i];
-            	}
-            }
-            throw new RuntimeException("This should never happen");
-        }
-
-		*/
         @Override
         public void remove() {
             throw new UnsupportedOperationException("my data can't be modified...  or maybe I'm just being lazy.");
