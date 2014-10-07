@@ -145,9 +145,11 @@ public class TupleDesc implements Serializable {
      * Note that tuples from a given TupleDesc are of a fixed size.
      */
     public int getSize() {
-    	int size = this.items[0].fieldType.getLen();
-    	int len = this.items.length;
-    	return size * len;
+    	int size = 0;
+    	for (int i = 0; i < this.items.length; i++) {
+    		size += this.items[i].fieldType.getLen();
+    	}
+    	return size;
     }
 
     /**

@@ -1,4 +1,3 @@
-
 package simpledb;
 
 import java.util.*;
@@ -54,7 +53,6 @@ public class HeapPage implements Page {
             header[i] = dis.readByte();
 
         tuples = new Tuple[numSlots];
-        System.out.println(tuples.length);
         try {
             // allocate and read the actual records of this page
             for (int i = 0; i < tuples.length; i++)
@@ -141,6 +139,7 @@ public class HeapPage implements Page {
             for (int j = 0; j < td.numFields(); j++) {
                 Field f = td.getFieldType(j).parse(dis);
                 t.setField(j, f);
+                System.out.println(f.toString());
             }
         } catch (java.text.ParseException e) {
             e.printStackTrace();
@@ -369,7 +368,8 @@ public class HeapPage implements Page {
 
         @Override
         public boolean hasNext() {
-            if (slots <= 0) {
+            if (slots <= 0 || currIdx >= numSlots-1) {
+            	//System.out.println("                         " + slots + "     " + currIdx + "    " + numSlots);
                 return false;
             }
             return true;
@@ -378,6 +378,7 @@ public class HeapPage implements Page {
 
         @Override
         public Tuple next() {
+        	//System.out.println(slots);
             if (!hasNext()) {
                 throw new NoSuchElementException("End of tuples");
             }

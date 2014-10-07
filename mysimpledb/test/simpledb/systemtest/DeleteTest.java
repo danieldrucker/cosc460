@@ -23,7 +23,9 @@ public class DeleteTest extends FilterBase {
         boolean hasResult = false;
         int result = -1;
         while (deleteOperator.hasNext()) {
+            System.out.println(hasResult);
             Tuple t = deleteOperator.next();
+            System.out.println(hasResult);
             assertFalse(hasResult);
             hasResult = true;
             assertEquals(SystemTestUtil.SINGLE_INT_DESCRIPTOR, t.getTupleDesc());

@@ -1,12 +1,15 @@
 package simpledb;
 
+import java.io.File;
 import java.io.IOException;
 
 public class Lab3Main {
 
     public static void main(String[] argv) 
        throws DbException, TransactionAbortedException, IOException {
-
+    	
+    	
+    	
         System.out.println("Loading schema from file:");
         // file named college.schema must be in mysimpledb directory
         Database.getCatalog().loadSchema("college.schema");
@@ -18,9 +21,6 @@ public class Lab3Main {
         // - a SeqScan operator on Students at the child of root
         TransactionId tid = new TransactionId();
         SeqScan scanStudents = new SeqScan(tid, Database.getCatalog().getTableId("students"));
-        
-        System.out.println(scanStudents.getTupleDesc());
-        scanStudents.open();
         
         
         StringField alice = new StringField("alice", Type.STRING_LEN);

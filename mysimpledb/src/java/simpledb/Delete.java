@@ -17,25 +17,39 @@ public class Delete extends Operator {
      * @param t     The transaction this delete runs in
      * @param child The child operator from which to read tuples for deletion
      */
+    
+    private TransactionId tid;
+    private DbIterator[] childDb;
+    private Tuple result;
+    private int deleted;
+    private boolean canRun;
+    
     public Delete(TransactionId t, DbIterator child) {
-        // some code goes here
+    	this.canRun = true;
+    	this.deleted = 0;
+        this.tid = t;
+        this.childDb = new DbIterator[]{child};
+        Type types[] = new Type[]{Type.INT_TYPE};
+        String names[] = new String[]{"deleted"};
+        this.result = new Tuple(new TupleDesc(types, names));
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return this.childDb[0].getTupleDesc();
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        this.childDb[0].open();
+        super.open();
     }
 
     public void close() {
-        // some code goes here
+        this.childDb[0].close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        this.childDb[0].rewind();
     }
 
     /**
@@ -48,19 +62,34 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        BufferPool bp = Database.getBufferPool();
+        if (!this.canRun) {
+        	return null;
+		}
+        while (this.childDb[0].hasNext()) {
+            Tuple t = this.childDb[0].next();
+            try {
+                bp.deleteTuple(this.tid, t);
+                this.deleted++;
+            } catch(IOException e) {
+                throw new DbException("DbException: unable to delete tuple");
+            }
+        }
+        this.result.setField(0, new IntField(this.deleted));
+        this.canRun = false;
+        return this.result;
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return this.childDb;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        for (int i = 0; i < children.length; i++) {
+            this.childDb[i] = children[i];
+        }
     }
 
 }
