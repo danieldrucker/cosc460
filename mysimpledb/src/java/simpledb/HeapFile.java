@@ -195,7 +195,8 @@ public class HeapFile implements DbFile {
         		return true;
         	}
         	if (this.currPage  < this.numPage) {
-        		return true;
+        		getNext();
+        		return this.it.hasNext();
         	}
         	return false;
         }
@@ -206,11 +207,7 @@ public class HeapFile implements DbFile {
             if ((!hasNext()) || this.status == false) {
             	throw new NoSuchElementException("No next or not open");
             }
-            if (this.it.hasNext()) {
-            	return this.it.next();
-            }
             else {
-            	getNext();
             	return this.it.next();
             }
         }

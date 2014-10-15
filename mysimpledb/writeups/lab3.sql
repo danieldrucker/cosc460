@@ -80,7 +80,7 @@ select " ";
 select "Q7";
 
 /* Put your SQL for Q7 below */
-
+Select title, count(*) from Movie M, Rating R where M.mID = R.mID group by title;
 
 /* Q8 - For each movie that has at least one rating, return the title and the 
         'rating spread', that is, the difference between highest and lowest 

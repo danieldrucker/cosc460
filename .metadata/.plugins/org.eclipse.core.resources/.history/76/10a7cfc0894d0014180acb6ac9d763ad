@@ -1,0 +1,104 @@
+package simpledb;
+
+import java.io.IOException;
+
+/**
+ * Inserts tuples read from the child operator into the tableid specified in the
+ * constructor
+ */
+public class Insert extends Operator {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructor.
+     *
+     * @param t       The transaction running the insert.
+     * @param child   The child operator from which to read tuples to be inserted.
+     * @param tableid The table in which to insert tuples.
+     * @throws DbException if TupleDesc of child differs from table into which we are to
+     *                     insert.
+     */
+    
+    private TransactionId tid;
+    private DbIterator[] childDb;
+    private int tableId;
+    private int inserted = 0;
+    
+    public Insert(TransactionId t, DbIterator child, int tableid)
+            throws DbException {
+        DbFile f = Database.getCatalog().getDatabaseFile(tableid);
+        if (child.getTupleDesc().equals(f.getTupleDesc())) {
+            this.tid = t;
+            this.tableId = tableid;
+            this.childDb = new DbIterator[]{child};
+        }
+        else {
+            throw new DbException("Child TupleDesc differs from table which are to insert into");
+        }
+    }
+
+    public TupleDesc getTupleDesc() {
+        return this.childDb[0].getTupleDesc();
+    }
+
+    public void open() throws DbException, TransactionAbortedException {
+        this.childDb[0].open();
+        super.open();
+    }
+
+    public void close() {
+        this.childDb[0].close();
+        super.close();
+    }
+
+    public void rewind() throws DbException, TransactionAbortedException {
+        this.childDb[0].rewind();
+    }
+
+    /**
+     * Inserts tuples read from child into the tableid specified by the
+     * constructor. It returns a one field tuple containing the number of
+     * inserted records. Inserts should be passed through BufferPool. An
+     * instances of BufferPool is available via Database.getBufferPool(). Note
+     * that insert DOES NOT need check to see if a particular tuple is a
+     * duplicate before inserting it.
+     *
+     * @return A 1-field tuple containing the number of inserted records, or
+     * null if called more than once.
+     * @see Database#getBufferPool
+     * @see BufferPool#insertTuple
+     */
+    protected Tuple fetchNext() throws TransactionAbortedException, DbException {
+        if (this.inserted != 0) {
+            return null;
+        }
+        BufferPool bp = Database.getBufferPool();
+        while (this.childDb[0].hasNext()) {
+            Tuple t = this.childDb[0].next();
+            try {
+                bp.insertTuple(this.tid, this.tableId, t);
+                this.inserted++;
+            } catch (IOException e){
+                throw new DbException("DbException Error");
+            }
+        }
+        Type types[] = new Type[]{Type.INT_TYPE};
+        String names[] = new String[]{"inserted"};
+        Tuple result = new Tuple(new TupleDesc(types, names));
+        //result.setField(0, new IntField(this.inserted));
+        return result;
+    }
+
+    @Override
+    public DbIterator[] getChildren() {
+        return this.childDb;
+    }
+
+    @Override
+    public void setChildren(DbIterator[] children) {
+        for (int i = 0; i < children.length; i++) {
+            this.childDb[i] = children[i];
+        }
+    }
+}

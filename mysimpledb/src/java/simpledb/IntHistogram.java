@@ -21,8 +21,19 @@ public class IntHistogram {
      * @param min     The minimum integer value that will ever be passed to this class for histogramming
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
+	
+	private int low;
+	private int high;
+	private int[] bucks;
+	private int width;
+	private int total;
+	
     public IntHistogram(int buckets, int min, int max) {
-        // some code goes here
+    	this.low = min;
+    	this.high = max;
+    	this.bucks = new int[buckets];
+    	this.width = (int)Math.floor((max-min+1)/buckets);
+    	this.total = 0;
     }
 
     /**
@@ -31,7 +42,35 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-        // some code goes here
+    	int bucket = findBucket(v);
+    	if (bucket < 0) {
+    		throw new RuntimeException("Outside of designated Range");
+    	}
+    	else {
+    		this.bucks[bucket]++;
+    		this.total++;
+    	}
+    }
+    
+    public int findBucket(int v) {
+    	if (v < this.low) {
+    		return -1;
+    	}
+    	if (v > this.high) {
+    		return -2;
+    	}
+    	int num = v - this.low;
+    	if (num == 0) {
+    		return 0;
+    	}
+    	
+    	int len = this.bucks.length;
+    	int x = (num/this.width);
+    	if (x >= len) {
+    		return len-1;
+    	} else {
+    		return x;
+    	}
     }
 
     /**
@@ -45,8 +84,53 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
-        // some code goes here
+    	int vBucket = findBucket(v);
+    	if (vBucket < 0) {
+    		double eqFraction = 0;
+    		if (vBucket == -1) {
+    			double gtrFraction = 1.0;
+    			double lessFraction = 0;
+    		} else {
+    			double gtrFraction = 0;
+    			double lessFraction = 1.0;
+    		}
+    	} else {
+    		int len = this.bucks.length;
+    		int width_last = this.width + ((this.high-this.low+1) % len);
+    		if (vBucket == (len - 1)) {
+    			double eqFraction = (this.bucks[vBucket] / width_last) / this.total;
+    			//add gtrFraction and lessFraction computation here for last bucket
+    		} else {
+    			double eqFraction = (this.bucks[vBucket] / this.width) / this.total;
+    			//add gtrFraction and lessFraction computation here for normal buckets
+    		}
+    	}
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	String pred = op.toString();
+    	
+    	
+    	/*
+    	switch (pred) {
+        case 1:  pred = "January";
+                 break;
+        case 2:  pred = "February";
+                 break;
+        case 3:  monthString = "March";
+                 break;
+        case 4:  monthString = "April";
+                 break;
+        case 5:  monthString = "May";
+                 break;
+        case 6:  monthString = "June";
+                 break;
+                 
+        */
         return -1.0;
     }
 

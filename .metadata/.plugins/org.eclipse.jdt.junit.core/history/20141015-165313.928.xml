@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?><testrun name="DeleteTest" project="mysimpledb" tests="5" started="5" failures="0" errors="0" ignored="0">
+  <testsuite name="simpledb.systemtest.DeleteTest" time="0.521">
+    <testcase name="testEquals" classname="simpledb.systemtest.DeleteTest" time="0.18"/>
+    <testcase name="testLessThan" classname="simpledb.systemtest.DeleteTest" time="0.134"/>
+    <testcase name="testLessThanOrEq" classname="simpledb.systemtest.DeleteTest" time="0.072"/>
+    <testcase name="testGreaterThan" classname="simpledb.systemtest.DeleteTest" time="0.071"/>
+    <testcase name="testGreaterThanOrEq" classname="simpledb.systemtest.DeleteTest" time="0.063"/>
+  </testsuite>
+</testrun>
