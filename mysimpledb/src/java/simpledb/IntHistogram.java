@@ -31,9 +31,15 @@ public class IntHistogram {
     public IntHistogram(int buckets, int min, int max) {
     	this.low = min;
     	this.high = max;
-    	this.bucks = new int[buckets];
-    	this.width = (int)Math.floor((max-min+1)/buckets);
     	this.total = 0;
+    	if (buckets > max - min + 1) {
+    		this.bucks = new int[max- min +1];
+    		this.width = 1;
+    	} else {
+    		this.bucks = new int[buckets];
+    		this.width = (int)Math.floor((max-min+1)/buckets);
+    	}
+
     }
 
     /**
@@ -85,53 +91,80 @@ public class IntHistogram {
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
     	int vBucket = findBucket(v);
+    	double eqFraction = -1.0;
+    	double gtrFraction = -1.0;
+    	double lessFraction = -1.0;
     	if (vBucket < 0) {
-    		double eqFraction = 0;
+    		eqFraction = 0;
     		if (vBucket == -1) {
-    			double gtrFraction = 1.0;
-    			double lessFraction = 0;
+    			gtrFraction = 1.0;
+    			lessFraction = 0;
     		} else {
-    			double gtrFraction = 0;
-    			double lessFraction = 1.0;
+    			gtrFraction = 0;
+    			lessFraction = 1.0;
     		}
     	} else {
     		int len = this.bucks.length;
-    		int width_last = this.width + ((this.high-this.low+1) % len);
+    		double width_last = (double)this.width + (double)((this.high-this.low+1) % len);
     		if (vBucket == (len - 1)) {
-    			double eqFraction = (this.bucks[vBucket] / width_last) / this.total;
-    			//add gtrFraction and lessFraction computation here for last bucket
+    			eqFraction = ((double)this.bucks[vBucket] / width_last) / (double)this.total ;
+    			gtrFraction = (((double)this.bucks[vBucket]/(double)this.total) * (((double)this.high - v) / width_last));
+    			lessFraction = 1.0 - (eqFraction + gtrFraction);
     		} else {
-    			double eqFraction = (this.bucks[vBucket] / this.width) / this.total;
-    			//add gtrFraction and lessFraction computation here for normal buckets
+    			eqFraction = ((double)this.bucks[vBucket] / (double)this.width) / (double)this.total;
+    			System.out.println(eqFraction);
+    			System.out.println(vBucket * this.width + this.low);
+    			int b_right = (vBucket +1) * this.width + this.low;
+    			if (v != (b_right-1)){
+    				gtrFraction = (((double)this.bucks[vBucket]/(double)this.total) * ((double)(b_right - v)/ (double)this.width));
+    			} else {
+    				gtrFraction = 0.0;
+    			}
+    			int num_gtr = 0;
+    			for (int i = vBucket + 1; i < len; i++) {
+    				num_gtr = num_gtr + this.bucks[i];
+    			}
+    			System.out.println(gtrFraction);
+    			gtrFraction += ((double)num_gtr / (double)this.total);
+    			
+    			lessFraction = 1.0 - (eqFraction + gtrFraction);
     		}
     	}
     	
-    	
-    	
-    	
-    	
-    	
-    	
     	String pred = op.toString();
+    	double ret_value = -1.0;
     	
-    	
-    	/*
     	switch (pred) {
-        case 1:  pred = "January";
-                 break;
-        case 2:  pred = "February";
-                 break;
-        case 3:  monthString = "March";
-                 break;
-        case 4:  monthString = "April";
-                 break;
-        case 5:  monthString = "May";
-                 break;
-        case 6:  monthString = "June";
-                 break;
-                 
-        */
-        return -1.0;
+        case "=":	//equals case
+        	ret_value = eqFraction;
+        	break;
+        case ">":	//greater than case
+        	ret_value = gtrFraction;
+            break;
+        case "<":	//less than case
+        	ret_value = lessFraction;
+            break;
+        case "<=":	//less than or equals to case
+        	ret_value = eqFraction + lessFraction;
+            break;
+        case ">=":	//greater than or equals to case
+        	ret_value = gtrFraction + eqFraction;
+        	break;
+        case "LIKE":	//like case
+        	ret_value = eqFraction;
+        	break;
+        case "<>":	//not equals to case
+        	ret_value = 1 - eqFraction;
+        	break;
+    	}
+    	System.out.println("eqFraction = "+eqFraction);
+    	System.out.println("gtrFraction = "+gtrFraction);
+    	System.out.println("lessFraction = "+lessFraction);
+    	if (ret_value == -1.0 || ret_value > 1.0) {
+    		System.out.println(ret_value);
+    		throw new RuntimeException("shouldn't happen: ret_value = -1.0 OR ret_value > 1.0");
+    	}
+        return ret_value;
     }
 
     /**
