@@ -112,8 +112,6 @@ public class IntHistogram {
     			lessFraction = 1.0 - (eqFraction + gtrFraction);
     		} else {
     			eqFraction = ((double)this.bucks[vBucket] / (double)this.width) / (double)this.total;
-    			System.out.println(eqFraction);
-    			System.out.println(vBucket * this.width + this.low);
     			int b_right = (vBucket +1) * this.width + this.low;
     			if (v != (b_right-1)){
     				gtrFraction = (((double)this.bucks[vBucket]/(double)this.total) * ((double)(b_right - v)/ (double)this.width));
@@ -124,7 +122,6 @@ public class IntHistogram {
     			for (int i = vBucket + 1; i < len; i++) {
     				num_gtr = num_gtr + this.bucks[i];
     			}
-    			System.out.println(gtrFraction);
     			gtrFraction += ((double)num_gtr / (double)this.total);
     			
     			lessFraction = 1.0 - (eqFraction + gtrFraction);
@@ -157,11 +154,8 @@ public class IntHistogram {
         	ret_value = 1 - eqFraction;
         	break;
     	}
-    	System.out.println("eqFraction = "+eqFraction);
-    	System.out.println("gtrFraction = "+gtrFraction);
-    	System.out.println("lessFraction = "+lessFraction);
+
     	if (ret_value == -1.0 || ret_value > 1.0) {
-    		System.out.println(ret_value);
     		throw new RuntimeException("shouldn't happen: ret_value = -1.0 OR ret_value > 1.0");
     	}
         return ret_value;
@@ -171,7 +165,7 @@ public class IntHistogram {
      * @return A string describing this histogram, for debugging purposes
      */
     public String toString() {
-        // some code goes here
-        return null;
+        String str = "min value = "+this.low+"| max value = "+this.high+"| total number of tuples = "+this.total+"| number of buckets = "+this.bucks.length+"| bucket width = "+this.width;
+        return str;
     }
 }
