@@ -71,6 +71,15 @@ public class TableStats {
      * @param ioCostPerPage The cost per page of IO. This doesn't differentiate between
      *                      sequential-scan IO and disk seeks.
      */
+    private HeapFile f;
+    private int tid;
+    private int ioCostpp;
+    private Object[] histograms;
+    private int[] mins;
+    private int[] maxs;
+    
+    
+    
     public TableStats(int tableid, int ioCostPerPage) {
         // For this function, you'll have to get the
         // DbFile for the table in question,
@@ -80,6 +89,78 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+    	
+    	this.tid = tableid;
+    	this.ioCostpp = ioCostPerPage;
+    	this.f = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+    	int numf = f.getTupleDesc().numFields();
+    	this.mins = new int[numf];
+    	this.maxs = new int[numf];
+    	this.histograms = new Object[numf];
+    	
+    	DbFileIterator it = this.f.iterator(new TransactionId());
+    	// initialize all min and max values to the least possible
+    	for (int i = 0; i < numf; i++) {
+    		this.mins[i] = Integer.MIN_VALUE;
+    		this.maxs[i] = Integer.MAX_VALUE;
+    	}
+    	try {
+	    	it.open();
+	    	// set min & max values
+	    	while (it.hasNext()) {
+	    		Tuple tup = it.next();
+	    		for (int j = 0; j < numf; j++) {
+	    			Field f = tup.getField(j);
+	    			int n;
+	    			if (f.getType().equals(Type.STRING_TYPE)) {
+	    				n = stringToInt(f.toString());
+	    			} else {
+	    				n = Integer.parseInt(f.toString());
+	    			}
+	    			
+	    			if (n < mins[j]) {
+	    				mins[j] = n;
+	    			}
+	    			if (n < maxs[j]) {
+	    				maxs[j] = n;
+	    			}
+	    		}
+	    	}
+	    	it.rewind();
+	    	Tuple t = it.next();
+
+	    	// initialize histograms
+	    	for (int k = 0; k < numf; k++) {
+    			Field f = t.getField(k);
+    			if (f.getType().equals(Type.STRING_TYPE)) {
+    				this.histograms[k] = new StringHistogram(NUM_HIST_BINS);
+    			} else {
+    				this.histograms[k] = new IntHistogram(NUM_HIST_BINS, mins[k], maxs[k]);
+    			}
+    		}
+	    	it.rewind();
+	    	
+	    	// populate histograms
+	    	while (it.hasNext()) {
+	    		Tuple tup = it.next();
+	    		for (int l = 0; l < numf; l++) {
+	    			Field f = tup.getField(l);
+	    			int n;
+	    			if (f.getType().equals(Type.STRING_TYPE)) {
+	    				n = stringToInt(f.toString());
+	    			} else {
+	    				IntField intfield = (IntField) f.getValue();
+	    				n = intfield.getValue());
+	    			}
+	    		}
+	    	}
+	    	
+    	} catch (Exception ex) {
+    		System.out.println(ex);
+    		ex.printStackTrace();
+    	}
+    	
+    	
     }
 
     /**
@@ -145,4 +226,46 @@ public class TableStats {
         return 1.0;
     }
 
+    /**
+     * Convert a string to an integer, with the property that if the return
+     * value(s1) < return value(s2), then s1 < s2
+     */
+    public int stringToInt(String s) {
+        int i;
+        int v = 0;
+        for (i = 3; i >= 0; i--) {
+            if (s.length() > 3 - i) {
+                int ci = (int) s.charAt(3 - i);
+                v += (ci) << (i * 8);
+            }
+        }
+
+        // XXX: hack to avoid getting wrong results for
+        // strings which don't output in the range min to max
+        if (!(s.equals("") || s.equals("zzzz"))) {
+            if (v < minVal()) {
+                v = minVal();
+            }
+
+            if (v > maxVal()) {
+                v = maxVal();
+            }
+        }
+
+        return v;
+    }
+    
+    /**
+     * @return the maximum value indexed by the histogram
+     */
+    int maxVal() {
+        return stringToInt("zzzz");
+    }
+
+    /**
+     * @return the minimum value indexed by the histogram
+     */
+    int minVal() {
+        return stringToInt("");
+    }
 }

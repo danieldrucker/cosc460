@@ -1,0 +1,84 @@
+Lab 4 Code Walk
+---------------
+
+Walk thru 1: simpledb.Parser.main() and simpledb.Parser.start()
+
+	simpledb.Parser.main() is the entry point for the SimpleDB system. It calls simpledb.Parser.start(). The latter performs three main actions:
+		1) It populates the SimpleDB catalog from the catalog text file provided by the user as argument (Database.getCatalog().loadSchema(argv[0]);).
+		2) For each table defined in the system catalog, it computes statistics over the data in the table by calling: TableStats.computeStatistics(), which then does: TableStats s = new TableStats(tableid, IOCOSTPERPAGE);
+		3) It processes the statements submitted by the user (processNextStatement(new ByteArrayInputStream(statementBytes));)
+
+Walk thru 2: simpledb.Parser.processNextStatement()
+
+	This method takes in the user input and attempts to parse it as SQL, using
+	the Zql parsing library.  This method handles bad user input, as well as valid SQL statements include INSERT, DELETE, and SELECT statements.  
+
+	We focus on the SELECT statement which is handled by 
+		handleQueryStatement((ZQuery)s)
+	This returns a Query object, which is then executed by calling
+		query.execute();
+
+Walk thru 3: simpledb.Parser.handleQueryStatement()
+
+	This method gets user input in the form of a ZQuery, and use that to create a LogicalPlan, which is a separate class. 
+	You then optimize the LogicalPlan into a PhysicalPlan (which uses a DBIterator). It does this by calling .physicalPlan, 
+	which calls the JoinOptimizer. It then sets this to the Query, and returns it.
+
+Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
+
+	1) This method receives a ZQuery, and makes a vector that allows you to move through the SQL statements. I then creates a new,
+	empty, LogicalPlan, and sets its query to the one we received in the parameter. It then walks through the vectors FROM clauses,
+	by using the .getFrom call, then attempts to get the table from the Database Catalog associated with that name. It then 
+	adds the Scan node for each of the tables.
+	2) It then goes on to get the WHERE clause by calling .getWhere(). If the clause is not null and not nested, processExpression
+	is called. processExpression makes sure that AND & OR is not being called, then checks whether a join or filter node is to be 
+	created, and creates it.
+	3) The method will check for a GROUPBY field to see if there is at most one. Then, it will checks that the clause is not too complex.
+	It then walks through the SELECT list and makes sure there are no subqueries and that the aggregates are applied to at most
+	one field each. It also ensures that all non-aggregated fields are in the in GROUPBY clause. Then, it will check to make sure 
+	that there is aggregation when a GROUPBY clause is present.
+	4) Finally, it sorts the data by at most a single-attribute ORDERBY. Our db does not support multiple and complex ORDERBY's.
+	
+ 
+Walk thru 5: simpledb.LogicalPlan.physicalPlan()
+
+	Your walk thru should explain how these data structures are used:
+		- equivMap
+		- filterSelectivities
+		- statsMap
+		- subplanMap
+
+	1) First, this method makes an iterator out of the global variable tables. Then, it iterates through each table and makes a new
+	SeqScan based on that table name, and if that table is not in the db, it will throw an error. It then takes that iteration of 
+	a table and inserts it into subplanMap with the key = alias and val = SeqScan. It then gets the baseTableName, and uses it to 
+	acquire the stat from baseTableStats, and inserts that value into statsMap, where the key is baseTableName. Then it inserts the
+	table alias into the filterSelectivity map, with each table starting at a 1.0 selectivity fraction.
+	2) Next, the method iterates through all of the filters, 
+	
+	4) Iterates through the SELECT list, and checks the out fields and out types for each SELECT. It makes sure the agg field is
+	not null, then adds the out field and out type to the ArrayLists outFields and outTypes. Then, if there is an agg, it creates 
+	a new Aggregate node. Then, if there is an ORDERBY, it makes a new OrderBy node. 
+	5) Finally returns a new Project object using the outFields and outTypes ArrayLists and the node we have developed over time.
+
+Walk thru 6: simpledb.JoinOptimizer.orderJoins()
+
+	<fill this in>
+
+Walk thru 7: JoinOptimizer.computeCostAndCardOfSubplan()
+
+	<fill this in>
+
+Walk thru 8: JoinOptimizer.estimateJoinCost()
+
+	<fill this in>
+
+Walk thru 9: JoinOptimizer.estimateJoinCardinality()
+
+	<fill this in>
+
+Walk thru 10 query.execute()
+	
+	Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
+
+	<fill this in>
+

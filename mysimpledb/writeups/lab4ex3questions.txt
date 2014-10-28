@@ -5,21 +5,45 @@ Answer these questions.  With each question is a hint as to which part of the co
 
 (Walk thru 1) How many instances of the TableStats class are created?
 
+There is one TableStat class made for every table used in the query, which will be inserted into statsMap.
+
 (Walk thru 4) In class, we said a logical plan is a relational algebra tree.  That's not how it's represented in SimpleDB.  How is it represented? 
+
+Rather than a relational algebra tree, it is instead a of collection of table scan nodes, join nodes, filter nodes, a select list, and a group by field. This has no order or any real logic to apply.
 
 (Walk thru 5) The physicalPlan is a relational algebra tree.  Describe the basic shape of this tree in terms of which ops go where.
 
-(Walk thru 5) Suppose a query applies multiple filters to a single table.  For example, the query described in the lab write up filters on both actor first and last name.  In such cases, how is the selectivity estimated?  
+The Physical Plan holds the basic shape of the relational algebra tree such that all of the filter operations are performed on the
+tables to be used, followed by join operations of the resulting filtered tables. Lastly a Project is used to contain only the
+attributes that were specified in the Select clause of the query.
+
+(Walk thru 5) Suppose a query applies multiple filters to a single table.  For example, the query described in the lab write up filters on both actor first and last name.  In such cases, how is the selectivity estimated?
+
+The selectivity is estimated by keeping a hashMap of the filterSelectivities of each table. All of the filter operations of the query are iterated through. For each filter the estimated selectivity is calculated and then multiplied by the current filter selectivity for that table which is stored in the HashMap. Thus the resulting product of all filter selectivities for that table is the final estimated selectivity for that table.
 
 (Walk thru 5) Explain the meaning of this if statement.  Why should the subplanMap have size 0 or 1 at this point?
 
     if (subplanMap.size() > 1) {
         throw new ParsingException("Query does not include join expressions joining all nodes!");
     }
+    
+At this point, the method has just joined t1 and t2. This new LogicalJoin is inserted into the subplanMap with an updated 
+subplan where t1 and t2 are infused. If it was a SubQueryJoin, the method gets plan2 from the LogicalJoinNode, and so there was 
+really only one subplan option for the join, which is updated. If it is not a SubQueryJoin, then it removes t2 from the 
+subplanMap, because the new node inserted into subplanMap is has the updated suplan for the joined tables.
 
 (Walk thru 7) What does computeCostAndCardOfSubplan do when the joinSet contains only a single join, the joinToRemove?
 
+If the joinSet contains one join, the joinToRemove is taken out and you are left with an empty joinSet. Now that joinSet is empty, we know that we have the base case, where both tables in the joinToRemove are base relations. In other words, this is the first join between two tables, so when you compute the cost and cardinality, it is just based off those two tables. You don't need to use any previous cached info.
+
 (Walk thru 9) Suppose we are considering a join between a table A and the result of a join between B and C.  Assume table A is the outer relation in the join.  What is the cost estimate?  Your expression should be in terms of the sizes (# pages, # tuples) of the base relations A, B, C.
+
+joincost(A join (B join C) =  Numpages(A) + ntups(A) * ((Numpages(B) + ntups(B) x Numpages(C))
+
 
 (Walk thru 10) In lab 3, you write Join and Filter operators.  Both of these support the DbIterator interface.  When/where are these iterators called?
 
+When Query executes its DbIterator, op, the parser class is called in order to create a logical plan. The physical plan will 
+determine when the respective filters and joins are called on the tables. Once the data for the query is collected and execute() on 
+Query is called, the Join and Filter DbIterators are called to analyze the tuples of the tables based on their given predicates in 
+the order that is determined by the physical plan.

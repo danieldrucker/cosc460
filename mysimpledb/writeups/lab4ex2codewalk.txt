@@ -3,61 +3,131 @@ Lab 4 Code Walk
 
 Walk thru 1: simpledb.Parser.main() and simpledb.Parser.start()
 
-	simpledb.Parser.main() is the entry point for the SimpleDB system. It calls simpledb.Parser.start(). The latter performs three main actions:
-		1) It populates the SimpleDB catalog from the catalog text file provided by the user as argument (Database.getCatalog().loadSchema(argv[0]);).
-		2) For each table defined in the system catalog, it computes statistics over the data in the table by calling: TableStats.computeStatistics(), which then does: TableStats s = new TableStats(tableid, IOCOSTPERPAGE);
-		3) It processes the statements submitted by the user (processNextStatement(new ByteArrayInputStream(statementBytes));)
+    simpledb.Parser.main() is the entry point for the SimpleDB system. It calls simpledb.Parser.start(). The latter performs three main actions:
+        1) It populates the SimpleDB catalog from the catalog text file provided by the user as argument (Database.getCatalog().loadSchema(argv[0]);).
+        2) For each table defined in the system catalog, it computes statistics over the data in the table by calling: TableStats.computeStatistics(), which then does: TableStats s = new TableStats(tableid, IOCOSTPERPAGE);
+        3) It processes the statements submitted by the user (processNextStatement(new ByteArrayInputStream(statementBytes));)
 
 Walk thru 2: simpledb.Parser.processNextStatement()
 
-	This method takes in the user input and attempts to parse it as SQL, using
-	the Zql parsing library.  This method handles bad user input, as well as valid SQL statements include INSERT, DELETE, and SELECT statements.  
+    This method takes in the user input and attempts to parse it as SQL, using
+    the Zql parsing library.  This method handles bad user input, as well as valid SQL statements include INSERT, DELETE, and SELECT statements.  
 
-	We focus on the SELECT statement which is handled by 
-		handleQueryStatement((ZQuery)s)
-	This returns a Query object, which is then executed by calling
-		query.execute();
+    We focus on the SELECT statement which is handled by 
+        handleQueryStatement((ZQuery)s)
+    This returns a Query object, which is then executed by calling
+        query.execute();
 
 Walk thru 3: simpledb.Parser.handleQueryStatement()
 
-	<fill this in>	
+    This method gets user input in the form of a ZQuery, and use that to create a LogicalPlan, which is a separate class. 
+    You then optimize the LogicalPlan into a PhysicalPlan (which uses a DBIterator). It does this by calling .physicalPlan, 
+    which calls the JoinOptimizer. It then sets this to the Query, and returns it.
 
 Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
 
-	<fill this in>
-
-	Note: this method is rather long and complex.  Your walk thru should focus
-	on the high-level ideas.  Specifically, explain how SQL query is processed to construct the LogicalPlan.  
+    1) This method receives a ZQuery, and makes a vector that allows you to move through the SQL statements. I then creates a new,
+    empty, LogicalPlan, and sets its query to the one we received in the parameter. It then walks through the vectors FROM clauses,
+    by using the .getFrom call, then attempts to get the table from the Database Catalog associated with that name. It then 
+    adds the Scan node for each of the tables.
+    2) It then goes on to get the WHERE clause by calling .getWhere(). If the clause is not null and not nested, processExpression
+    is called. processExpression makes sure that AND & OR is not being called, then checks whether a join or filter node is to be 
+    created, and creates it.
+    3) The method will check for a GROUPBY field to see if there is at most one. Then, it will checks that the clause is not too complex.
+    It then walks through the SELECT list and makes sure there are no subqueries and that the aggregates are applied to at most
+    one field each. It also ensures that all non-aggregated fields are in the in GROUPBY clause. Then, it will check to make sure 
+    that there is aggregation when a GROUPBY clause is present.
+    4) Finally, it sorts the data by at most a single-attribute ORDERBY. Our db does not support multiple and complex ORDERBY's.
+    
  
 Walk thru 5: simpledb.LogicalPlan.physicalPlan()
 
-	Your walk thru should explain how these data structures are used:
-		- equivMap
-		- filterSelectivities
-		- statsMap
-		- subplanMap
+    Your walk thru should explain how these data structures are used:
+        - equivMap
+        - filterSelectivities
+        - statsMap
+        - subplanMap
 
-	<fill this in>
+    1) First, this method makes an iterator over the tables specified in the logical plan. Then, it iterates through each table 
+    and makes a new SeqScan based on that table name, and if that table is not in the db, it will throw an error. It then takes 
+    that iteration of a table and inserts it into subplanMap with the key = alias and val = SeqScan. It then gets the 
+    baseTableName, and uses it to acquire the stat from baseTableStats, and inserts that value into statsMap, where the key is 
+    baseTableName. Then it inserts the table alias into the filterSelectivity map, with each table starting at a 1.0 selectivity 
+    fraction.
+    2) Next, the method iterates through all of the filters. For each filter this method makes sure that the table can be found        
+    in the FROM clause, that the field is within that table, creates a predicate that corresponds to the filter. It then inserts
+    the tablename and the filter into subplanMap. Then, for each filter it will calculate the estimateSelectivity, and then then
+    multiply it by whatever the filter selectivity was for the corresponding table. It will insert this value into
+    filterSelectivities as the updated selectivity for the appropriate table. You will then be left with a (filterSelectivities)
+    map with the keys as the tables, and the value being the total selectivity through each of that tables filters.   
+    3) Following that, the method creates a JoinOptimizer for the logical plan. This JoinOptimizer then orders the joins in the 
+    order upon which they should be executed. It then creates an iterator through this order of joins, and begins iterating through 
+    the joins. For each join, it checks if each of the tables are in the equiv map. If so, it sets the table name to the equivalent 
+    table. Otherwise, the table names remain the same. Then, it sets the plan for each join by calling the subplanMap. However if 
+    the LogicalJoinNode is a subplan, t2 is set to that subplan. With the two plans and the LogicalJoinNode, a new DbIterator is 
+    made, then placed in the subplanMap with the first table name. If it is not a SubQueryJoin, you must remove the second table 
+    name from subplanMap, but then make table1 and table2 equivalent by putting them in the equivMap with table2 as the key.
+    4) Iterates through the SELECT list, and checks the out fields and out types for each SELECT. It makes sure that if there is an 
+    agg field that it is not null, then adds the out field and out type to the ArrayLists outFields and outTypes. Then, if there is
+    an agg, it creates a new Aggregate node. Then, if there is an ORDERBY, it makes a new OrderBy node. 
+    5) Finally returns a new Project object using the outFields and outTypes ArrayLists and the node we have developed over time.
 
 Walk thru 6: simpledb.JoinOptimizer.orderJoins()
 
-	<fill this in>
+    The job of this method is to order the Joins(a set of two tables) such that joining all of the tables will minimize the disk 
+    I/O. It does this by using dynamic programming to find the best "plan" using just one Join, then two, etc. The algorithm used 
+    in this method is a "bottom-up" approach that computes the cost, size and plan of a subset of the set of tables that the Join 
+    is to be used on. Starting at subsets of length 1 (i.e. just one Join) the algorithm computes the cost and cardinality for each 
+    Join using the computeCostAndCardOfSubplan() helper method, we throw these values in the PlanCache for now. We then want to 
+    compute these quantities for all subsets of length greater than 1 (i.e. starting at subsets of size 2, then 3 and so on until 
+    you are evaluating the entire set of joins). For each of these subsets, we take each join in the subset in turn and then find 
+    the cost of joining that join with the rest of the joins in the subset, only passing on the lowest cost join of the two (the 
+    lowest cost order of joins for that subset) which are then stored in the PlanCache. When we are attempting to join a singleton 
+    join with a subset of multiple joins, we can look in the PlanCache for the lowest cost join of that subset because all of the 
+    lowest cost joins for all subsets smaller than the subset currently being evaluated will be stored in the PlanCache. These 
+    steps will be repeated for every possible subset of the joins until we evaluate the lowest cost join of the entire set of 
+    joins, giving us our final answer with the optimal join order. If the boolean Explain is true, you simply call the printJoins 
+    method with the appropriate parameters to explain the query plan.
 
 Walk thru 7: JoinOptimizer.computeCostAndCardOfSubplan()
 
-	<fill this in>
+    Computes the best way to join a LogicalJoinNode to a set of Joins in the form of a CostCard, which holds the cost, cardinality, 
+    and best join ordering.
+    Begins by checking that joinToRemove (j) has table1 and table2 in the Logical Plan, then gets them from the Database Catalog. 
+    Removes j from the joinSet. If the joinSet is empty, then we know that we have the base case, where both tables are base 
+    relations. We then calculate the ScanCost and TableCardinality for both tables. If the joinSet is not empty, it figures out the 
+    best way to join j to the news. It then saves the joinSets previous best cost and best card. Next, it looks at the right 
+    subtree. First, it checks if j.t1 is in the list of previousBest. If it is, it uses that previous cost and previous best card 
+    for t1. Then it calculates the ScanCost and TableCardinality for the second table, j.t2. Now if j.t1 is not in the list of 
+    previousBest, then you want to do the opposite of above; use the previous cost and card for t2, then calculate t1's attributes. 
+    Only one of these should happen, and if neither do, then this is not a plan. Next, it checks if the order of Joins would be 
+    more efficient if you swapped the inner and outer tables, and updates the values accordingly. Finally, it makes a new CostCard 
+    objects and sets the appropriate values that were just calculated.
 
 Walk thru 8: JoinOptimizer.estimateJoinCost()
 
-	<fill this in>
+    This method takes as input the LogicalJoinNode j, the estimated cardinality of each side of the query (card1 - left-hand side, 
+    and card2 for the right-hand side) and the estimated costs of a full scan of the tables on each side of the query. If the 
+    LogicalJoinNode is an instance of a LogicalSubplanJoinNode then we simply add together the cardinality of the left-hand side of 
+    the query and the costs of full scans through the tables to be joined. Because we use a nested loop in our join algorithm, it 
+    will be: JoinCost = cost1 + (card1*cost2).
 
 Walk thru 9: JoinOptimizer.estimateJoinCardinality()
 
-	<fill this in>
+    This method recieves the LogicalJoinNode, card1, card2, t1pkey, t2pkey, and statsMap. It then uses these to calculate the 
+    cardinality if the two tables were joined; or in other words, how many tuples there will be after the join. If it is an 
+    equality join you want to use the formula:
+    
+    ntups(t1 join t2) = ntups(t1) * ntups(t2) / max ( V(A, t1), V(B, t2) ) 
+    
+    --> where V(A, t1) is the number of distinct values of attribute A in t1. However if either of the attributes that are being 
+    are primary keys, you know that some info: if t1's attribute is a primary key in an equality join, then you know that the 
+    joined cardinality cannot be larger than the cardinality of t2. It returns the number of tuples (cardinality) as an int.
 
 Walk thru 10 query.execute()
-	
-	Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
+    
+    Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
 
-	<fill this in>
-
+    This method prints out the names of all the fields of the resulting relation of the query, then line by line prints out the 
+    tuples of that relation in full, while keeping a count of the number of  tuples in the rlation. After all tuples are printed 
+    out a final line with the count of rows (tuples) is printed.
