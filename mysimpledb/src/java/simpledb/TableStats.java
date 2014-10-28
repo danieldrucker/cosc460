@@ -72,13 +72,11 @@ public class TableStats {
      *                      sequential-scan IO and disk seeks.
      */
     private HeapFile f;
-    private int tid;
     private int ioCostpp;
     private Object[] histograms;
     private int[] mins;
     private int[] maxs;
     private int tuples;
-    private ArrayList<HashMap<String, Integer>> dist;
     private int[] distvals;
 
     
@@ -93,7 +91,6 @@ public class TableStats {
         // in a single scan of the table.
         // some code goes here
     	
-    	this.tid = tableid;
     	this.ioCostpp = ioCostPerPage;
     	this.f = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
     	int numf = f.getTupleDesc().numFields();
