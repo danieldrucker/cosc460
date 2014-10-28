@@ -61,7 +61,7 @@ public class TableStats {
      * 100, though our tests assume that you have at least 100 bins in your
      * histograms.
      */
-    static final int NUM_HIST_BINS = 100;
+    static final int NUM_HIST_BINS = 10;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -77,6 +77,7 @@ public class TableStats {
     private Object[] histograms;
     private int[] mins;
     private int[] maxs;
+    private int tuples;
     
     
     
@@ -97,12 +98,14 @@ public class TableStats {
     	this.mins = new int[numf];
     	this.maxs = new int[numf];
     	this.histograms = new Object[numf];
+    	this.tuples = 0;
+    	
     	
     	DbFileIterator it = this.f.iterator(new TransactionId());
     	// initialize all min and max values to the least possible
     	for (int i = 0; i < numf; i++) {
-    		this.mins[i] = Integer.MIN_VALUE;
-    		this.maxs[i] = Integer.MAX_VALUE;
+    		this.mins[i] = Integer.MAX_VALUE;
+    		this.maxs[i] = Integer.MIN_VALUE;
     	}
     	try {
 	    	it.open();
@@ -123,10 +126,11 @@ public class TableStats {
 	    			if (n < mins[j]) {
 	    				mins[j] = n;
 	    			}
-	    			if (n < maxs[j]) {
+	    			if (n > maxs[j]) {
 	    				maxs[j] = n;
 	    			}
 	    		}
+	    		this.tuples++;
 	    	}
 	    	it.rewind();
 	    	Tuple t = it.next();
@@ -162,6 +166,7 @@ public class TableStats {
 	    				this.histograms[l] = ih;
 	    			}
 	    		}
+	    		this.tuples++;
 	    	}
 	    	it.rewind();
 	    	it.close();
@@ -187,8 +192,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-        // some code goes here
-        return 0;
+        return this.f.numPages() * this.ioCostpp;
     }
 
     /**
@@ -200,8 +204,10 @@ public class TableStats {
      * selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-        // some code goes here
-        return 0;
+        if (selectivityFactor > 0 && selectivityFactor < 1/tuples) {
+        	return 1;
+        }
+        return (int)(this.tuples * selectivityFactor);
     }
 
     /**
@@ -233,8 +239,17 @@ public class TableStats {
      * predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-        // some code goes here
-        return 1.0;
+		if (constant.getType().equals(Type.STRING_TYPE)) {
+			StringField stringfield = (StringField) constant;
+			String s = stringfield.getValue();
+			StringHistogram sh = (StringHistogram)this.histograms[field];
+			return sh.estimateSelectivity(op, s);
+		} else {
+			IntField intfield = (IntField) constant;
+			int n = intfield.getValue();
+			IntHistogram ih = (IntHistogram)this.histograms[field];
+			return ih.estimateSelectivity(op, n);
+		}
     }
 
     /**

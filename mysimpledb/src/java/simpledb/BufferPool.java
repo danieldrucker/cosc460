@@ -82,7 +82,6 @@ public class BufferPool {
             Page p = f.readPage(pid);
             //System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
             if (this.bp.size() >= this.pageLimit) {
-            	System.out.println("Evict");
                 evictPage();
             }
             this.bufferQueue.addFirst(pid);

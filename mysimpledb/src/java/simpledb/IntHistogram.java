@@ -32,6 +32,9 @@ public class IntHistogram {
     	this.low = min;
     	this.high = max;
     	this.total = 0;
+    	//System.out.println(buckets);
+    	//System.out.println(max);
+    	//System.out.println(min);
     	if (buckets > max - min + 1) {
     		this.bucks = new int[max- min +1];
     		this.width = 1;
@@ -90,6 +93,14 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
+    	/*
+    	if (v < this.low || v > this.high) {
+        	System.out.println("Im in!!!!!!!!!!!");
+
+    		return 0.0;
+    	}
+    	*/
+    	
     	int vBucket = findBucket(v);
     	double eqFraction = -1.0;
     	double gtrFraction = -1.0;
