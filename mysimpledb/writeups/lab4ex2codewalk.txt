@@ -129,5 +129,5 @@ Walk thru 10 query.execute()
     Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
 
     This method prints out the names of all the fields of the resulting relation of the query, then line by line prints out the 
-    tuples of that relation in full, while keeping a count of the number of  tuples in the rlation. After all tuples are printed 
+    tuples of that relation in full, while keeping a count of the number of  tuples in the relation. After all tuples are printed 
     out a final line with the count of rows (tuples) is printed.

@@ -78,7 +78,9 @@ public class TableStats {
     private int[] mins;
     private int[] maxs;
     private int tuples;
-    
+    private ArrayList<HashMap<String, Integer>> dist;
+    private int[] distvals;
+
     
     
     public TableStats(int tableid, int ioCostPerPage) {
@@ -99,6 +101,8 @@ public class TableStats {
     	this.maxs = new int[numf];
     	this.histograms = new Object[numf];
     	this.tuples = 0;
+    	this.distvals = new int[numf];
+
     	
     	
     	DbFileIterator it = this.f.iterator(new TransactionId());
@@ -143,6 +147,7 @@ public class TableStats {
     			} else {
     				this.histograms[k] = new IntHistogram(NUM_HIST_BINS, mins[k], maxs[k]);
     			}
+    			this.distvals[k] = maxs[k]-mins[k]+1;
     		}
 	    	it.rewind();
 	    	
@@ -166,7 +171,6 @@ public class TableStats {
 	    				this.histograms[l] = ih;
 	    			}
 	    		}
-	    		this.tuples++;
 	    	}
 	    	it.rewind();
 	    	it.close();
@@ -221,11 +225,10 @@ public class TableStats {
      *
      * @param field the index of the field
      * @return The number of distinct values of the field.
-     */
+    */
+    
     public int numDistinctValues(int field) {
-        // some code goes here
-        throw new UnsupportedOperationException("implement me");
-
+    	return this.distvals[field];
     }
 
     /**

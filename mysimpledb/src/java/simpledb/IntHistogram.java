@@ -125,7 +125,7 @@ public class IntHistogram {
     			eqFraction = ((double)this.bucks[vBucket] / (double)this.width) / (double)this.total;
     			int b_right = (vBucket +1) * this.width + this.low;
     			if (v != (b_right-1)){
-    				gtrFraction = (((double)this.bucks[vBucket]/(double)this.total) * ((double)(b_right - v)/ (double)this.width));
+    				gtrFraction = (((double)this.bucks[vBucket]/(double)this.total) * ((double)(b_right - v-1)/ (double)this.width));
     			} else {
     				gtrFraction = 0.0;
     			}
@@ -134,7 +134,8 @@ public class IntHistogram {
     				num_gtr = num_gtr + this.bucks[i];
     			}
     			gtrFraction += ((double)num_gtr / (double)this.total);
-    			
+    			System.out.println(gtrFraction);
+    			System.out.println(eqFraction);
     			lessFraction = 1.0 - (eqFraction + gtrFraction);
     		}
     	}
