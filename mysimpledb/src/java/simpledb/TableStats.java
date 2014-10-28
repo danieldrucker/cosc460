@@ -113,9 +113,11 @@ public class TableStats {
 	    			Field f = tup.getField(j);
 	    			int n;
 	    			if (f.getType().equals(Type.STRING_TYPE)) {
-	    				n = stringToInt(f.toString());
+	    				StringField stringfield = (StringField) f;
+	    				n = stringToInt(stringfield.getValue());
 	    			} else {
-	    				n = Integer.parseInt(f.toString());
+	    				IntField intfield = (IntField) f;
+	    				n = intfield.getValue();
 	    			}
 	    			
 	    			if (n < mins[j]) {
@@ -147,13 +149,22 @@ public class TableStats {
 	    			Field f = tup.getField(l);
 	    			int n;
 	    			if (f.getType().equals(Type.STRING_TYPE)) {
-	    				n = stringToInt(f.toString());
+	    				StringField stringfield = (StringField) f;
+	    				String s = stringfield.getValue();
+	    				StringHistogram sh = (StringHistogram)this.histograms[l];
+	    				sh.addValue(s);
+	    				this.histograms[l] = sh;
 	    			} else {
-	    				IntField intfield = (IntField) f.getValue();
-	    				n = intfield.getValue());
+	    				IntField intfield = (IntField) f;
+	    				n = intfield.getValue();
+	    				IntHistogram ih = (IntHistogram)this.histograms[l];
+	    				ih.addValue(n);
+	    				this.histograms[l] = ih;
 	    			}
 	    		}
 	    	}
+	    	it.rewind();
+	    	it.close();
 	    	
     	} catch (Exception ex) {
     		System.out.println(ex);
