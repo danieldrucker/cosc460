@@ -47,11 +47,11 @@ public class JoinPredicate implements Serializable {
     }
 
     public int getField1() {
-        return this.getField1();
+        return this.f1;
     }
 
     public int getField2() {
-        return this.getField2();
+        return this.f2;
     }
 
     public Predicate.Op getOperator() {

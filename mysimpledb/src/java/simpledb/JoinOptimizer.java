@@ -114,7 +114,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+        	return cost1 + card1 * cost2;
         }
     }
 
@@ -153,7 +153,28 @@ public class JoinOptimizer {
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
         int card = 1;
-        // some code goes here
+        // ntups(t1 join t2) = ntups(t1) * ntups(t2) / max ( V(A, t1), V(B, t2) )
+        
+        
+        TableStats stat1 = stats.get((Database.getCatalog().getTableName(tableAliasToId.get(table1Alias))));
+        TableStats stat2 = stats.get((Database.getCatalog().getTableName(tableAliasToId.get(table2Alias))));
+        int f1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias)).fieldNameToIndex(field1PureName); 
+        int f2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias)).fieldNameToIndex(field2PureName);
+        System.out.println(stat1);
+        System.out.println(stat2);
+        
+        if (joinOp.equals(Predicate.Op.EQUALS) || joinOp.equals(Predicate.Op.LIKE)) {
+            int eqCard = (card1 * card2)/Math.max(stat1.numDistinctValues(f1), stat2.numDistinctValues(f2));
+            if (t1pkey && (eqCard > card2)) {
+                eqCard = card2;
+            } if (t2pkey && (eqCard > card1)) {
+                eqCard = card1;
+            }
+            card = eqCard;
+        } else {
+            card = (int) Math.ceil((card1 * card2) * 0.3);  
+        }
+        
         return card <= 0 ? 1 : card;
     }
 
@@ -209,12 +230,38 @@ public class JoinOptimizer {
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
 
-        // See the Lab 4 writeup for some hints as to how this function
-        // should work.
+        PlanCache pc = new PlanCache();
+        for (int i = 1; i <= joins.size() + 1 ; i++) {
+            Set<Set<LogicalJoinNode>> set = enumerateSubsets(joins, i);
+            Iterator<Set<LogicalJoinNode>> iter = set.iterator();
+            while (iter.hasNext()) {
+                Set<LogicalJoinNode> s = iter.next();
+                Iterator<LogicalJoinNode> sit = s.iterator();
+                Double bestCost = Double.MAX_VALUE;
+                if (i == 1) {
+                	LogicalJoinNode j = sit.next();
+                    CostCard cc = this.computeCostAndCardOfSubplan(stats, filterSelectivities, j, s, Double.POSITIVE_INFINITY, pc);
+                    pc.addPlan(s, cc.cost, cc.card, cc.plan);
+                } else {
+	                while (sit.hasNext()) {
+	                	LogicalJoinNode j = sit.next();
+                        CostCard plan = this.computeCostAndCardOfSubplan(stats, filterSelectivities, j, s, bestCost, pc);
+                        if (plan == null) { continue; }
+                        if  (plan.cost < bestCost) {
+                            bestCost = plan.cost;
+    		                pc.addPlan(s, plan.cost, plan.card, plan.plan);
+                        }
+	                }
 
-        // some code goes here
-        //Replace the following
-        return joins;
+                }
+            }
+        }
+        Set<LogicalJoinNode> finalSet = enumerateSubsets(joins, joins.size()).iterator().next();
+        if (explain) {
+            this.printJoins(pc.getOrder(finalSet), pc, stats, filterSelectivities);
+        }
+        return pc.getOrder(finalSet);
+
     }
 
     // ===================== Private Methods =================================

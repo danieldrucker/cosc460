@@ -45,7 +45,6 @@ public class QueryTest {
         final int IO_COST = 101;
 
 //		HashMap<String, TableStats> stats = new HashMap<String, TableStats>();
-
         // Create all of the tables, and add them to the catalog
         ArrayList<ArrayList<Integer>> empTuples = new ArrayList<ArrayList<Integer>>();
         HeapFile emp = SystemTestUtil.createRandomHeapFile(6, 100000, null, empTuples, "c");
