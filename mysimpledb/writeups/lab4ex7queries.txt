@@ -10,20 +10,51 @@ and a.fname='Ginger' and a.lname='Rogers';
 
 Query 1 optimizer's plan:
 
-<fill in here>
+                           π(d.fname,d.lname),card:1
+                            |
+                            ⨝(a.id=c.pid),card:1
+  __________________________|___________________________
+  |                                                    |
+  σ(a.lname=Rogers),card:1                             ⨝(m.mid=c.mid),card:1
+  |                                    ________________|_________________
+  σ(a.fname=Ginger),card:1             |                                |
+  |                                    ⨝(d.id=m.did),card:37            |
+  |                           _________|_________                       |
+  |                           |                 |                     scan(Casts c)
+scan(Actor a)               scan(Director d)  scan(Movie_Director m)
 
 Query 1 plan explanation:
 
-<fill in here>
+The first join that is executed is the one between Directors and Movie_Director (m.did=d.id) because the resulting estimated cardinality (37) is lower than that
+which would have been made between Casts and Movie_Director. Following that join, the next join executed is between that resulting table and 
+Casts based on (c.mid=m.mid) getting a resulting estimated cardinality of 1. The final join is then made between this resulting table
+and the filtered Actor table, which also has an estimated cardinality of 1 because it was looking for all actors with the name "Ginger
+Rogers". This plan resulted in a final join between two tables each an estimated cardinality of 1 making this last join incredibly cheap.
 
 Query 2:
 
-<fill in here>
+select m.name
+from Actor a, Casts c, Movie m
+where m.id=c.mid and c.pid=a.id and m.year > '1995'
+and a.fname='Brad' and a.lname='Pitt';
 
 Query 1 optimizer's plan:
 
-<fill in here>
+                      π(m.name),card:1
+                      |
+                      ⨝(a.id=c.pid),card:1
+  ____________________|_____________________
+  |                                        |
+  σ(a.lname=Hanks),card:1                  ⨝(m.id=c.mid),card:23
+  |                          ______________|______________
+  σ(a.fname=Tom),card:1      |                           |
+  |                          σ(m.year>1995),card:1240    |
+scan(Actor a)                |                           |
+                           scan(Movie m)               scan(Casts c)
 
 Query 1 plan explanation:
 
-<fill in here>
+The optimized join order begins with a join between a filtered Movie table (filtering all movies that were made after 1995) and the
+Casts table. This join has a very low estimated cardinality and is thus joined with the table that results from filtering the Actors
+table accepting only those actors with the name Tom Hanks. Because the filter on Actors results in a table with an estimated cardinality
+of 1, it is the last to be joined. 

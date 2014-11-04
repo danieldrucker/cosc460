@@ -160,8 +160,6 @@ public class JoinOptimizer {
         TableStats stat2 = stats.get((Database.getCatalog().getTableName(tableAliasToId.get(table2Alias))));
         int f1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias)).fieldNameToIndex(field1PureName); 
         int f2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias)).fieldNameToIndex(field2PureName);
-        System.out.println(stat1);
-        System.out.println(stat2);
         
         if (joinOp.equals(Predicate.Op.EQUALS) || joinOp.equals(Predicate.Op.LIKE)) {
             int eqCard = (card1 * card2)/Math.max(stat1.numDistinctValues(f1), stat2.numDistinctValues(f2));

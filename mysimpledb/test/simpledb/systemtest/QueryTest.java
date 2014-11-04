@@ -67,7 +67,6 @@ public class QueryTest {
         TableStats.setTableStats("dept", new TableStats(Database.getCatalog().getTableId("dept"), IO_COST));
         TableStats.setTableStats("hobby", new TableStats(Database.getCatalog().getTableId("hobby"), IO_COST));
         TableStats.setTableStats("hobbies", new TableStats(Database.getCatalog().getTableId("hobbies"), IO_COST));
-
 //		Parser.setStatsMap(stats);
 
         Transaction t = new Transaction();
