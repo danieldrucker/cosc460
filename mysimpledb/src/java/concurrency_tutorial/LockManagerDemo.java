@@ -1,5 +1,12 @@
 package concurrency_tutorial;
 
+import java.util.LinkedList;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
+
+import simpledb.PageId;
+import simpledb.TransactionId;
+
 public class LockManagerDemo {
     private static final LockManager lm = new LockManager();
     public static LockManager getLockManager() { return lm; }
@@ -73,30 +80,129 @@ public class LockManagerDemo {
     }
 
     static class LockManager {
-        private boolean inUse = false;
+	    private boolean inUse = false;
+	
+	    public synchronized void acquireLock() {
+	        while (inUse) {
+	            try {
+	                wait();
+	            } catch (InterruptedException e) {}
+	        }
+	        inUse = true;
+	        notifyAll();
+	    }
+	        
+	
+	    public synchronized void releaseLock() {
+	        inUse = false;
+	        notifyAll();
+	    }
+	}
+}
 
-        public void acquireLock() {
-            boolean waiting = true;
-            while (waiting) {
-                synchronized (this) {
-                    // check if lock is available
-                    if (!inUse) {
-                        // it's not in use, so we can take it!
-                        inUse = true;
-                        waiting = false;
-                    }
-                }
-                if (waiting) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException ignored) { }
-                }
-            }
-        }
+/*
 
-        public synchronized void releaseLock() {
-            inUse = false;
-        }
+static class LockTable {
+	
+    private ConcurrentHashMap<PageId,LinkedList<Lock>> map;
+
+    public LockTable() {
+    	map = new ConcurrentHashMap<PageId, LinkedList<Lock>>();
+    }
+    
+    public synchronized void acquireLock(TransactionId tid, PageId pid) {
+    	if (!map.containsKey(pid)) {
+    		LinkedList<Lock> l = new LinkedList<Lock>();
+    		l.add(new Lock(tid, true));
+    		map.put(pid, l);
+    	}
+    	else {
+    		LinkedList<Lock> list = map.get(pid);
+    		if (list.isEmpty()) {
+    			list.add(new Lock(tid, true));
+    			map.put(pid, list);
+    		}
+    		else {
+    			Lock x = new Lock(tid, false);
+    			list.add(x);
+    			map.put(pid, list);
+    			while (map.get(pid).getFirst() != x) {
+    	            try {
+    	                wait();
+    	            } catch (InterruptedException e) {}
+    	        }
+    			map.get(pid).getFirst().takeLock();
+    	        notifyAll();
+    		}	
+    	}
+    }
+    
+    public synchronized void releaseLock(TransactionId tid, PageId pid) {
+    	if (!map.containsKey(pid)) {
+    		throw new NoSuchElementException("Lock isn't being used!");
+    	}
+    	else {
+    		LinkedList<Lock> list = map.get(pid);
+    		if (list.isEmpty()) {
+    			throw new NoSuchElementException("There is no transaction in the linked list!");
+    		}
+    		else {
+    			Lock l = list.remove();
+    			if (tid != l.getTid()) {
+    				throw new NoSuchElementException("The transaction ID's don't match, does not hold the lock");
+    			}
+    			map.put(pid, list);
+    	        notifyAll();
+    		}	
+    	}
+    }
+    
+    public boolean hasLock(TransactionId tid, PageId pid) {
+    	if (!map.containsKey(pid)) {
+    		throw new NoSuchElementException("No transaction holds lock for this page");
+    	} 
+    	else {
+    		LinkedList<Lock> list = map.get(pid);
+    		if (list.isEmpty()) {
+    			return false;
+    		}
+    		else {
+    			if (list.getFirst().getTid() != tid) {
+    				return false;
+    			}
+    			return true;
+    		}
+    	}
+    }
+    
+    
+    public class Lock {
+    	private TransactionId transId;
+    	private boolean holdslock;
+    	
+    	public Lock(TransactionId tid, boolean l) {
+    		transId = tid;
+    		holdslock = l;
+    	}
+    	
+    	public TransactionId getTid() {
+    		return transId;
+    	}
+    	
+    	public boolean holdsL() {
+    		return holdslock;
+    	}
+    	
+    	public void releaseLock() {
+    		holdslock = false;
+    	}
+    	
+    	public void takeLock() {
+    		holdslock = true;
+    	}
+    	
     }
 }
+
+*/
 

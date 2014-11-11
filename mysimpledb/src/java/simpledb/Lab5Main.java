@@ -15,7 +15,7 @@ public class Lab5Main {
         // loads the imdb database because each table is big enough to have multiple pages
         Database.getCatalog().loadSchema("imdb.schema");             // file imdb.schema must be in mysimpledb directory
 
-        Lab5Util.runTransactions(new T1(), new T2());
+        Lab5Util.runTransactions(new T3(), new T4(), new T4(), new T4());
     }
 
     static class T1 extends SimpleDBTransactionThread {
@@ -49,5 +49,34 @@ public class Lab5Main {
             System.out.println("got both locks " + tid);
         }
     }
+    
+    static class T3 extends SimpleDBTransactionThread {
+
+        @Override
+        protected void execute() throws TransactionAbortedException, DbException {
+            int table = Database.getCatalog().getTableId("Actor");
+            PageId p0 = new HeapPageId(table, 0);
+            Database.getBufferPool().getPage(tid, p0, Permissions.READ_WRITE);
+            try {
+            	System.out.println("Thread goes to sleep");
+                Thread.sleep(5000);
+            } catch (InterruptedException ignored) { }
+            BufferPool.getLockManager().lockRelease(tid, p0);
+            System.out.println("got lock: " + tid);
+        }
+    }
+    
+    static class T4 extends SimpleDBTransactionThread {
+
+        @Override
+        protected void execute() throws TransactionAbortedException, DbException {
+            int table = Database.getCatalog().getTableId("Actor");
+            PageId p0 = new HeapPageId(table, 0);
+            Database.getBufferPool().getPage(tid, p0, Permissions.READ_WRITE);
+            BufferPool.getLockManager().lockRelease(tid, p0);
+            System.out.println("gotlock: " + tid);
+        }
+    }
+
 
 }

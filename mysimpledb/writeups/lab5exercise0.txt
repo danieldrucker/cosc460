@@ -1,18 +1,34 @@
-Your name(s): 
+Your name(s): Kos "Markitos" Georges and Dan Drucker
 
 1. Explain how you modified SynchronizedThreads in exercise 1.
 
+We synchronized the Incrementer and getCount methods by adding the "synchronized" keyword to the method declaration.
+
 2. Briefly describe (1-2 sentences) an alternate implementation for exercise 1.
+
+The other implementation method would require us to synchronize statements within the methods that would alter variables
+that are used by both methods. We would not be able to include in these statements any instructions that make calls to 
+other methods in the class.
 
 3. Exercise 2: Explain the deadlock that happens in Deadlock in terms of locks and threads waiting on locks. The two threads in this case are alphonse and gaston. 
 
-a) What objects are being locked? 
+a) What objects are being locked? The two Friend objects, Alphonse and Gaston, are being locked.
 
-b) Who has what locks? 
+b) Who has what locks? Alphonse has his own lock when he calls bow, and Gaston has his own lock when he calls bow. But both are waiting for
+                       the other's lock to free so they can execute bowback.
 
-c) How does deadlock occur?
+c) How does deadlock occur? Deadlock occurs in this example because each object has its own lock but requires the lock of the other for bowback
+                            to continue, thus deadlock occurs as they wait for the other to free the lock.
 
 4. Return to exercise 1, can deadlock occur here?  Explain why or why not.
 
+Deadlock in SynchronizedThreads cannot occur because deadlock requires two locks to be dependent on each other for completion and for two
+threads to hold the two locks waiting for the other to release the lock without releasing the lock that they themselves are holding. This
+situation cannot occur in SynchronizedThreads because no locks require another lock to be held to complete its execution.
+
 5. Explain why acquireLock uses a synchronized statement inside the body of the method. In other words, why not just make the acquireLock method synchronized, just like releaseLock? Will this work? Why or why not?
-	
+    
+This method uses a sychronized statement rather than synchronizing the entire method because when the inUse lock is acquired, i.e. it is true, another thread
+who calls acquireLock will hold onto the lock on the lock manager which disallows the thread that is holding the inUse lock from releasing it, making it False 
+again, because it needs the lock on the lock manager in order to call releaseLock. This lock will never be released because it inUse will never become available 
+to the thread holding the lock manager lock.

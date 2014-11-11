@@ -1,10 +1,9 @@
 package simpledb;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.*;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -35,6 +34,11 @@ public class BufferPool {
     private int pageLimit;
     private ConcurrentHashMap<PageId,Page> bp;
     private LinkedList<PageId> bufferQueue;
+    
+    // For lock Manager
+    private static final LockManager lm = new LockManager();
+    public static LockManager getLockManager() { return lm; }
+    
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -72,24 +76,29 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
-        if (this.bp.containsKey(pid)) {
-            this.bufferQueue.remove(pid);
-            this.bufferQueue.addFirst(pid);
-            return this.bp.get(pid);
-        } else {
-            Catalog c = Database.getCatalog();
-            DbFile f = c.getDatabaseFile(pid.getTableId());
-            Page p = f.readPage(pid);
-            //System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
-            if (this.bp.size() >= this.pageLimit) {
-                evictPage();
-            }
-            this.bufferQueue.addFirst(pid);
-            this.bp.put(pid, p);
-            return p;
+        BufferPool.getLockManager().lockRequest(tid, pid, perm);
+        synchronized (this) {
+	    	if (this.bp.containsKey(pid)) {
+	            this.bufferQueue.remove(pid);
+	            this.bufferQueue.addFirst(pid);
+	            return this.bp.get(pid);
+	        } else {
+	            Catalog c = Database.getCatalog();
+	            DbFile f = c.getDatabaseFile(pid.getTableId());
+	            Page p = f.readPage(pid);
+	            //System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
+	            if (this.bp.size() >= this.pageLimit) {
+	                evictPage();
+	            }
+	            this.bufferQueue.addFirst(pid);
+	            this.bp.put(pid, p);
+	            return p;
+	        }
         }
     }
 
+
+    
     /**
      * Releases the lock on a page.
      * Calling this is very risky, and may result in wrong behavior. Think hard
@@ -100,8 +109,7 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        BufferPool.getLockManager().lockRelease(tid, pid);
     }
 
     /**
@@ -118,9 +126,7 @@ public class BufferPool {
      * Return true if the specified transaction has a lock on the specified page
      */
     public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
-        return false;
+        return BufferPool.getLockManager().hasLock(tid, p);
     }
 
     /**
@@ -246,5 +252,189 @@ public class BufferPool {
             throw new DbException("could not flush page");
         }
     }
+    
 
+    static class LockManager {
+        
+        private HashMap<PageId, LockEntry> lt;
+        private HashMap<TransactionId, ArrayList<PageId>> twait;
+        private HashMap<TransactionId, ArrayList<PageId>> thold;
+        
+        public LockManager() {
+            lt = new HashMap<PageId, LockEntry>();
+            twait = new HashMap<TransactionId, ArrayList<PageId>>();
+            thold = new HashMap<TransactionId, ArrayList<PageId>>();
+        }
+        
+        public void lockRequest(TransactionId tid, PageId pid, Permissions p) {
+            boolean waiting = true;
+            
+            while (waiting) {
+
+                synchronized (this) {
+                    LockEntry l = lt.get(pid);
+                    if (l == null) {
+                        l = new LockEntry(pid);
+                        l.addTid(tid);
+                        l.setType(p);
+                        lt.put(pid, l);
+                        updateThold(tid, pid, true);
+                        waiting = false;
+                    } else {
+                        if (l.getType() == null) {
+                            l.addTid(tid);
+                            l.setType(p);
+                            lt.put(pid, l);
+                            updateThold(tid, pid, true);
+                            waiting = false;
+                        }
+                        else if (l.getType() == p && p == Permissions.READ_ONLY) {
+                            l.addTid(tid);
+                            lt.put(pid, l);
+                            updateThold(tid, pid, true);
+                            waiting = false;
+                        } 
+                        else if (l.getType() == Permissions.READ_WRITE || p == Permissions.READ_WRITE) {
+                            updateTwait(tid, pid, true);
+                            l.addRequest(tid);
+                            lt.put(pid, l);
+                            if (!l.inUse() && (tid == lt.get(pid).getFirst())) {   
+                                l.addTid(tid);
+                                l.setType(p);
+                                l.removeRequest();
+                                lt.put(pid, l);
+                                updateTwait(tid, pid, false);
+                                updateThold(tid, pid, true);
+                                l.setUse(true);
+                                waiting = false;
+                            }
+                        }
+                    }
+                }
+                if (waiting) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {}
+                }
+            }
+        }
+        
+        public void lockRelease(TransactionId tid, PageId pid) {
+        	System.out.println("Balling!");
+            LockEntry l = lt.get(pid);
+            if (!l.holding.contains(tid)) {
+                return;
+            }
+            synchronized (this) {
+                if (!(l == null)) {
+                    updateThold(tid, pid, false);
+                    l.removeTid(tid);
+                    lt.put(pid, l);
+                }
+            }
+        }
+        
+
+        public synchronized boolean hasLock(TransactionId tid, PageId pid) {
+        	if (lt.containsKey(pid)) {
+        		LockEntry l = lt.get(pid);
+        		if (l.holding.contains(tid)) {
+        			return true;
+        		}
+        	}
+        	return false;
+        }
+        
+        
+        public void updateTwait(TransactionId tid, PageId pid, boolean io) {
+            if (io) {
+                if (!twait.containsKey(tid)) {
+                    ArrayList<PageId> list = new ArrayList<PageId>();
+                    list.add(pid);
+                    twait.put(tid, list);
+                } else {
+                    ArrayList<PageId> list = twait.get(tid);
+                    list.add(pid);
+                    twait.put(tid, list);
+                }
+            } else {
+                ArrayList<PageId> list = twait.get(tid);
+                twait.remove(pid);
+                twait.put(tid, list);
+            }
+        }
+        
+        public void updateThold(TransactionId tid, PageId pid, boolean io) {
+            if (io) {
+                if (!thold.containsKey(tid)) {
+                    ArrayList<PageId> list = new ArrayList<PageId>();
+                    list.add(pid);
+                    thold.put(tid, list);
+                } else {
+                    ArrayList<PageId> list = thold.get(tid);
+                    list.add(pid);
+                    thold.put(tid, list);
+                }
+            } else {
+                ArrayList<PageId> list = thold.get(tid);
+                thold.remove(pid);
+                thold.put(tid, list);
+            }
+        }
+        
+        public class LockEntry {
+            
+            private ArrayList<TransactionId> holding;
+            private Permissions lockType;
+            private LinkedList<TransactionId> requesting;
+            private boolean inUse;
+            
+            public LockEntry(PageId pid) {
+                holding = new ArrayList<TransactionId>();
+                lockType = null;
+                requesting = new LinkedList<TransactionId>();
+                inUse = false;
+            }
+            
+            public boolean inUse() {
+            	return inUse;
+            }
+            
+            public void setUse(boolean u) {
+            	inUse = u;
+            }
+             
+            public void setType(Permissions perm) {
+                lockType = perm;
+            }
+            
+            public Permissions getType(){
+                return lockType;
+            }
+            
+            public void addRequest(TransactionId tid) {
+                requesting.add(tid);
+            }
+            
+            public TransactionId getFirst() {
+                return requesting.getFirst();
+            }
+            
+            public void removeRequest() {
+                requesting.removeFirst();
+            }
+            
+            public void removeTid(TransactionId tid) {
+                holding.remove(tid);
+                if (holding.isEmpty()) {
+                    lockType = null;
+                }
+            }
+            
+            public void addTid(TransactionId tid) {
+                holding.add(tid);
+            }
+        }
+        
+    }  
 }
