@@ -330,12 +330,13 @@ public class BufferPool {
                     updateThold(tid, pid, false);
                     l.removeTid(tid);
                     lt.put(pid, l);
+                    l.setUse(false);
                 }
             }
         }
         
 
-        public synchronized boolean hasLock(TransactionId tid, PageId pid) {
+        public boolean hasLock(TransactionId tid, PageId pid) {
         	if (lt.containsKey(pid)) {
         		LockEntry l = lt.get(pid);
         		if (l.holding.contains(tid)) {
