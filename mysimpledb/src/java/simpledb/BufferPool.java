@@ -33,7 +33,8 @@ public class BufferPool {
     
     private int pageLimit;
     private ConcurrentHashMap<PageId,Page> bp;
-    private LinkedList<PageId> bufferQueue;
+    private LinkedList<PageId> cleanQueue;
+    private LinkedList<PageId> dirtyQueue;
     
     // For lock Manager
     private static final LockManager lm = new LockManager();
@@ -48,7 +49,8 @@ public class BufferPool {
     public BufferPool(int numPages) {
         this.pageLimit = numPages;
         this.bp = new ConcurrentHashMap<PageId,Page>();
-        this.bufferQueue = new LinkedList<PageId>();
+        this.cleanQueue = new LinkedList<PageId>();
+        this.dirtyQueue = new LinkedList<PageId>();
     }
 
     public static int getPageSize() {
@@ -76,21 +78,40 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
-        BufferPool.getLockManager().lockRequest(tid, pid, perm);
+    	BufferPool.getLockManager().lockRequest(tid, pid, perm);
         synchronized (this) {
+        	System.out.println("Clean queue:  " + this.cleanQueue.toString());
+        	System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
 	    	if (this.bp.containsKey(pid)) {
-	            this.bufferQueue.remove(pid);
-	            this.bufferQueue.addFirst(pid);
-	            return this.bp.get(pid);
+	    		HeapPage hp = (HeapPage) bp.get(pid); 
+	    		if (hp.isDirty() == tid) {
+	    			this.dirtyQueue.remove(pid);
+	    			this.dirtyQueue.addFirst(pid);	    		
+	    		} else if (hp.isDirty() == null && perm == Permissions.READ_ONLY) {
+	    			this.cleanQueue.remove(pid);
+	    			this.cleanQueue.addFirst(pid);
+	    		} else {
+	    			this.cleanQueue.remove(pid);
+	    			this.dirtyQueue.addFirst(pid);
+	    		}
+	    		return this.bp.get(pid);
 	        } else {
 	            Catalog c = Database.getCatalog();
 	            DbFile f = c.getDatabaseFile(pid.getTableId());
 	            Page p = f.readPage(pid);
-	            //System.out.println(this.bp.size() + "    |    " + this.bufferQueue.size() + "    |  " + this.pageLimit);
+	            System.out.println(this.bp.size() + "   and page limit   " + this.pageLimit);
 	            if (this.bp.size() >= this.pageLimit) {
 	                evictPage();
 	            }
-	            this.bufferQueue.addFirst(pid);
+	            //System.out.println(perm);
+	            this.cleanQueue.addFirst(pid);
+	            /*
+	            if (perm == Permissions.READ_ONLY) {
+	            	this.cleanQueue.addFirst(pid);
+	            } else {
+	            	this.dirtyQueue.addFirst(pid);
+	            }
+	            */
 	            this.bp.put(pid, p);
 	            return p;
 	        }
@@ -118,8 +139,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	transactionComplete(tid, true);                                                        // cosc460
     }
 
     /**
@@ -138,8 +158,37 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	if (commit) {
+    		flushPages(tid);
+    	} else {
+    		Catalog c = Database.getCatalog();
+    		LinkedList<PageId> temp = this.dirtyQueue;
+        	while (!temp.isEmpty()) {
+        		PageId pid = temp.removeLast();
+	            DbFile f = c.getDatabaseFile(pid.getTableId());
+	            HeapPage hp = (HeapPage) bp.get(pid);
+        		if (hp.isDirty() == tid) {
+    	            Page p = f.readPage(pid);
+    	            this.bp.put(pid, p);
+        			this.dirtyQueue.remove(pid);
+        			this.cleanQueue.add(pid);
+        		}
+        	}
+    	}
+    	ArrayList<PageId> releaseHold = BufferPool.getLockManager().thold.get(tid);
+    	ArrayList<PageId> releaseReq = BufferPool.getLockManager().twait.get(tid);
+    	for (PageId pageId : releaseHold) {
+    		releasePage(tid, pageId);
+    	}
+    	if (releaseReq != null) {
+    		for (PageId pageId : releaseReq) {
+    			releaseRequest(tid, pageId);
+    		}
+    	}
+    }
+    
+    public void releaseRequest(TransactionId tid, PageId pid) {
+    	BufferPool.getLockManager().updateTwait(tid, pid, false);
     }
 
     /**
@@ -225,6 +274,8 @@ public class BufferPool {
             throw new IOException("page not found in BufferPool");
         }
         hp.markDirty(false, hp.isDirty());
+		this.dirtyQueue.remove(pid);
+		this.cleanQueue.addFirst(pid);
         f.writePage(hp);
     }    
 
@@ -232,8 +283,16 @@ public class BufferPool {
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	LinkedList<PageId> temp = this.dirtyQueue;
+    	while (!temp.isEmpty()) {
+    		PageId pid = temp.removeLast();
+    		HeapPage hp = (HeapPage) bp.get(pid);
+    		if (hp.isDirty() == tid) {
+    			flushPage(pid);
+    			System.out.println("flushed page - " + pid.toString());
+    		}
+    	}
+        
     }
 
     /**
@@ -243,14 +302,24 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-        PageId pid = this.bufferQueue.removeLast();
+    	//System.out.println(this.dirtyQueue.toString());
+        if (this.cleanQueue.isEmpty()) {
+        	throw new DbException("no clean pages to evict");
+        }
+    	PageId pid = this.cleanQueue.removeLast();
+        HeapPage hp = (HeapPage) bp.get(pid);
+        //if (hp.isDirty() == null) {throw new DbException("Dirty page in clean cue"); }
         try {
             flushPage(pid);
+			System.out.println("flushed page - " + pid.toString());
             this.bp.remove(pid);
+            this.cleanQueue.remove(pid);
         }
         catch (IOException e) {
             throw new DbException("could not flush page");
         }
+    	System.out.println("Clean queue:  " + this.cleanQueue.toString());
+    	System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
     }
     
 
@@ -278,10 +347,21 @@ public class BufferPool {
                         l.addTid(tid);
                         l.setType(p);
                         lt.put(pid, l);
+                        System.out.println("Update thold1");
                         updateThold(tid, pid, true);
                         waiting = false;
                     } else {
-                        if (l.getType() == null) {
+                    	if (hasLock(tid, pid) && ((l.getType() == p) || (l.getType() == Permissions.READ_WRITE && p == Permissions.READ_ONLY))) {
+                    		waiting = false;
+                    	}
+                    	else if (hasLock(tid, pid) && l.getType() == Permissions.READ_ONLY && p == Permissions.READ_WRITE) {
+                    		//l.addUpgradeRequest(tid);
+                            //lt.put(pid, l);
+                            System.out.println("Update twait1");
+                            //updateTwait(tid, pid, true);
+                    		waiting = false;
+                    	}
+                    	else if (l.getType() == null) {
                             l.addTid(tid);
                             l.setType(p);
                             lt.put(pid, l);
@@ -295,10 +375,18 @@ public class BufferPool {
                             waiting = false;
                         } 
                         else if (l.getType() == Permissions.READ_WRITE || p == Permissions.READ_WRITE) {
+                        	//System.out.println(p);
+                        	//System.out.println("Holding:    " + l.holding.toString());
+                        	//System.out.println("Requesting:    " + l.requesting.toString());
                             updateTwait(tid, pid, true);
+                            System.out.println("Add request");
                             l.addRequest(tid);
                             lt.put(pid, l);
-                            if (!l.inUse() && (tid == lt.get(pid).getFirst())) {   
+                            //if (!l.inUse()) { System.out.println("Not in use"); }
+                            //System.out.println("tid is:    " + tid + "   "+ "requesting is:   " +  lt.get(pid).requesting.toString());
+                            if (!l.inUse() && (tid == lt.get(pid).requesting.getFirst())) {   
+                                System.out.println("Got exit");
+                                
                                 l.addTid(tid);
                                 l.setType(p);
                                 l.removeRequest();
@@ -355,6 +443,7 @@ public class BufferPool {
                     twait.put(tid, list);
                 } else {
                     ArrayList<PageId> list = twait.get(tid);
+                    list.remove(pid);
                     list.add(pid);
                     twait.put(tid, list);
                 }
@@ -373,6 +462,7 @@ public class BufferPool {
                     thold.put(tid, list);
                 } else {
                     ArrayList<PageId> list = thold.get(tid);
+                    list.remove(pid);
                     list.add(pid);
                     thold.put(tid, list);
                 }
@@ -414,6 +504,7 @@ public class BufferPool {
             }
             
             public void addRequest(TransactionId tid) {
+            	requesting.remove(tid);
                 requesting.add(tid);
             }
             
@@ -433,7 +524,13 @@ public class BufferPool {
             }
             
             public void addTid(TransactionId tid) {
+            	holding.remove(tid);
                 holding.add(tid);
+            }
+            
+            public void addUpgradeRequest(TransactionId tid) {
+            	requesting.remove(tid);
+                requesting.addFirst(tid);
             }
         }
         

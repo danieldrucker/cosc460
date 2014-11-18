@@ -108,21 +108,30 @@ public class HeapFile implements DbFile {
     	
     	HeapPage page;
     	for (int i = 0; i < numPages(); i++) {
-    		page = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), i), null);
+    		boolean prevHold = false;
+    		if (Database.getBufferPool().holdsLock(tid, new HeapPageId(getId(), i))) {
+    			prevHold = true;
+    		}
+    		page = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), i), Permissions.READ_WRITE);
     		if (page.getNumEmptySlots() > 0) {
     			page.insertTuple(t);
     	        ArrayList<Page> newPage = new ArrayList<Page>();
     	        newPage.add(page);
     	        return newPage;
+    		} else if (!prevHold){
+    			BufferPool.getLockManager().lockRelease(tid, page.getId());
     		}
     	}
     	byte[] data = HeapPage.createEmptyPageData();
     	page = new HeapPage(new HeapPageId(getId(), numPages()), data);
-		page.insertTuple(t);
-		writePage(page);
-        ArrayList<Page> newPage = new ArrayList<Page>();
-        newPage.add(page);
-        return newPage;
+		synchronized (this) {
+			writePage(page);
+			HeapPage getpage = (HeapPage) Database.getBufferPool().getPage(tid, page.getId(), Permissions.READ_ONLY);
+			getpage.insertTuple(t);
+	        ArrayList<Page> newPage = new ArrayList<Page>();
+	        newPage.add(getpage);
+	        return newPage;
+		}
     }
 
     // see DbFile.java for javadocs
@@ -132,7 +141,7 @@ public class HeapFile implements DbFile {
         	throw new DbException("Not in db");
         }
         PageId pid = t.getRecordId().getPageId();
-        HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pid, null);
+        HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
         page.deleteTuple(t);
         ArrayList<Page> newPage = new ArrayList<Page>();
         newPage.add(page);
@@ -164,7 +173,7 @@ public class HeapFile implements DbFile {
         
         private void getNext() throws DbException, TransactionAbortedException {
         	HeapPageId pid = new HeapPageId(getId(), this.currPage);
-        	HeapPage p = (HeapPage) this.bp.getPage(this.t, pid, null);
+        	HeapPage p = (HeapPage) this.bp.getPage(this.t, pid, Permissions.READ_ONLY);
         	this.it = p.iterator();
         	this.currPage++;
         }

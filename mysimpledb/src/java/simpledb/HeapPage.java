@@ -278,7 +278,7 @@ public class HeapPage implements Page {
         }
         for (int i = 0; i < tuples.length; i++) {
             //check if the slot is used
-            if (!(this.isSlotUsed(i))){     
+            if (!(this.isSlotUsed(i))) {     
                 tuples[i] = t;
                 //updates header
                 this.markSlotUsed(i, true);
