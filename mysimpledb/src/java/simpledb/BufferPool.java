@@ -80,8 +80,8 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
     	BufferPool.getLockManager().lockRequest(tid, pid, perm);
         synchronized (this) {
-        	System.out.println("Clean queue:  " + this.cleanQueue.toString());
-        	System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
+        	//System.out.println("Clean queue:  " + this.cleanQueue.toString());
+        	//System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
 	    	if (this.bp.containsKey(pid)) {
 	    		HeapPage hp = (HeapPage) bp.get(pid); 
 	    		if (hp.isDirty() == tid) {
@@ -99,7 +99,7 @@ public class BufferPool {
 	            Catalog c = Database.getCatalog();
 	            DbFile f = c.getDatabaseFile(pid.getTableId());
 	            Page p = f.readPage(pid);
-	            System.out.println(this.bp.size() + "   and page limit   " + this.pageLimit);
+	            //System.out.println(this.bp.size() + "   and page limit   " + this.pageLimit);
 	            if (this.bp.size() >= this.pageLimit) {
 	                evictPage();
 	            }
@@ -302,24 +302,21 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-    	//System.out.println(this.dirtyQueue.toString());
         if (this.cleanQueue.isEmpty()) {
         	throw new DbException("no clean pages to evict");
         }
     	PageId pid = this.cleanQueue.removeLast();
         HeapPage hp = (HeapPage) bp.get(pid);
-        //if (hp.isDirty() == null) {throw new DbException("Dirty page in clean cue"); }
         try {
             flushPage(pid);
-			System.out.println("flushed page - " + pid.toString());
             this.bp.remove(pid);
             this.cleanQueue.remove(pid);
         }
         catch (IOException e) {
             throw new DbException("could not flush page");
         }
-    	System.out.println("Clean queue:  " + this.cleanQueue.toString());
-    	System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
+    	//System.out.println("Clean queue:  " + this.cleanQueue.toString());
+    	//System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
     }
     
 
@@ -347,7 +344,6 @@ public class BufferPool {
                         l.addTid(tid);
                         l.setType(p);
                         lt.put(pid, l);
-                        System.out.println("Update thold1");
                         updateThold(tid, pid, true);
                         waiting = false;
                     } else {
@@ -357,7 +353,6 @@ public class BufferPool {
                     	else if (hasLock(tid, pid) && l.getType() == Permissions.READ_ONLY && p == Permissions.READ_WRITE) {
                     		//l.addUpgradeRequest(tid);
                             //lt.put(pid, l);
-                            System.out.println("Update twait1");
                             //updateTwait(tid, pid, true);
                     		waiting = false;
                     	}
@@ -375,18 +370,11 @@ public class BufferPool {
                             waiting = false;
                         } 
                         else if (l.getType() == Permissions.READ_WRITE || p == Permissions.READ_WRITE) {
-                        	//System.out.println(p);
-                        	//System.out.println("Holding:    " + l.holding.toString());
-                        	//System.out.println("Requesting:    " + l.requesting.toString());
                             updateTwait(tid, pid, true);
-                            System.out.println("Add request");
                             l.addRequest(tid);
                             lt.put(pid, l);
-                            //if (!l.inUse()) { System.out.println("Not in use"); }
                             //System.out.println("tid is:    " + tid + "   "+ "requesting is:   " +  lt.get(pid).requesting.toString());
                             if (!l.inUse() && (tid == lt.get(pid).requesting.getFirst())) {   
-                                System.out.println("Got exit");
-                                
                                 l.addTid(tid);
                                 l.setType(p);
                                 l.removeRequest();
@@ -408,7 +396,7 @@ public class BufferPool {
         }
         
         public void lockRelease(TransactionId tid, PageId pid) {
-        	System.out.println("Balling!");
+        	//System.out.println("Released!");
             LockEntry l = lt.get(pid);
             if (!l.holding.contains(tid)) {
                 return;
