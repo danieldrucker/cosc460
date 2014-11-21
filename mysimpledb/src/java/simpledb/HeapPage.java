@@ -244,7 +244,8 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-        if (t.getRecordId() == null){
+    	System.out.println( "money -    " + t.toString());
+    	if (t.getRecordId() == null){
             throw new DbException("page is already empty");
         }
         if (!(this.pid.equals(t.getRecordId().getPageId()))){
@@ -296,6 +297,12 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         this.dirt = dirty;
         this.tranId = tid;
+        if (dirty) {
+        	Database.getBufferPool().markDirty(this.pid);
+        } else {
+        	Database.getBufferPool().markClean(this.pid);
+        }
+        Database.getBufferPool().putPage(this.pid, this);
     }
 
     /**

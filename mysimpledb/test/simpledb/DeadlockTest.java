@@ -139,10 +139,9 @@ public class DeadlockTest extends TestUtil.CreateHeapFile {
 
         LockGrabber lg1Write1 = startGrabber(tid1, p1, Permissions.READ_WRITE);
         LockGrabber lg2Write0 = startGrabber(tid2, p0, Permissions.READ_WRITE);
-
+        
         while (true) {
             Thread.sleep(POLL_INTERVAL);
-
             assertFalse(lg1Write1.acquired() && lg2Write0.acquired());
             if (lg1Write1.acquired() && !lg2Write0.acquired()) break;
             if (!lg1Write1.acquired() && lg2Write0.acquired()) break;

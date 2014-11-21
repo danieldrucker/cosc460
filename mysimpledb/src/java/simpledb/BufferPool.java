@@ -61,6 +61,22 @@ public class BufferPool {
     public static void setPageSize(int pageSize) {
         BufferPool.pageSize = pageSize;
     }
+     
+    public void markDirty(PageId pid) {
+    	this.cleanQueue.remove(pid);
+    	this.dirtyQueue.remove(pid);
+    	this.dirtyQueue.addFirst(pid);
+    }
+    
+    public void markClean(PageId pid) {
+    	this.cleanQueue.remove(pid);
+    	this.dirtyQueue.remove(pid);
+    	this.cleanQueue.addFirst(pid);
+    }
+    
+    public void putPage(PageId pid, Page p) {
+    	this.bp.put(pid, p);
+    }
 
     /**
      * Retrieve the specified page with the associated permissions.
@@ -80,20 +96,8 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException {
     	BufferPool.getLockManager().lockRequest(tid, pid, perm);
         synchronized (this) {
-        	//System.out.println("Clean queue:  " + this.cleanQueue.toString());
-        	//System.out.println("Dirty queue:  " + this.dirtyQueue.toString());
 	    	if (this.bp.containsKey(pid)) {
 	    		HeapPage hp = (HeapPage) bp.get(pid); 
-	    		if (hp.isDirty() == tid) {
-	    			this.dirtyQueue.remove(pid);
-	    			this.dirtyQueue.addFirst(pid);	    		
-	    		} else if (hp.isDirty() == null && perm == Permissions.READ_ONLY) {
-	    			this.cleanQueue.remove(pid);
-	    			this.cleanQueue.addFirst(pid);
-	    		} else {
-	    			this.cleanQueue.remove(pid);
-	    			this.dirtyQueue.addFirst(pid);
-	    		}
 	    		return this.bp.get(pid);
 	        } else {
 	            Catalog c = Database.getCatalog();
@@ -103,15 +107,7 @@ public class BufferPool {
 	            if (this.bp.size() >= this.pageLimit) {
 	                evictPage();
 	            }
-	            //System.out.println(perm);
 	            this.cleanQueue.addFirst(pid);
-	            /*
-	            if (perm == Permissions.READ_ONLY) {
-	            	this.cleanQueue.addFirst(pid);
-	            } else {
-	            	this.dirtyQueue.addFirst(pid);
-	            }
-	            */
 	            this.bp.put(pid, p);
 	            return p;
 	        }
@@ -175,10 +171,13 @@ public class BufferPool {
         		}
         	}
     	}
+    	
     	ArrayList<PageId> releaseHold = BufferPool.getLockManager().thold.get(tid);
     	ArrayList<PageId> releaseReq = BufferPool.getLockManager().twait.get(tid);
-    	for (PageId pageId : releaseHold) {
-    		releasePage(tid, pageId);
+    	if (releaseHold != null) {
+	    	for (PageId pageId : releaseHold) {
+	    		releasePage(tid, pageId);
+	    	}
     	}
     	if (releaseReq != null) {
     		for (PageId pageId : releaseReq) {
@@ -210,7 +209,9 @@ public class BufferPool {
         Catalog c = Database.getCatalog();
         DbFile f = c.getDatabaseFile(tableId);
         ArrayList<Page> newPage = f.insertTuple(tid, t);
-        newPage.get(0).markDirty(true, tid);
+        for (Page p : newPage) {
+            p.markDirty(true, tid);
+        }
     }
 
     /**
@@ -231,7 +232,9 @@ public class BufferPool {
         Catalog c = Database.getCatalog();
         DbFile f = c.getDatabaseFile(tabID);
         ArrayList<Page> newPage = f.deleteTuple(tid, t);
-        newPage.get(0).markDirty(true, tid);
+        for (Page p : newPage) {
+            p.markDirty(true, tid);
+        }
     }
 
     /**
@@ -274,9 +277,9 @@ public class BufferPool {
             throw new IOException("page not found in BufferPool");
         }
         hp.markDirty(false, hp.isDirty());
-		this.dirtyQueue.remove(pid);
-		this.cleanQueue.addFirst(pid);
+
         f.writePage(hp);
+        
     }    
 
     /**
@@ -332,13 +335,20 @@ public class BufferPool {
             thold = new HashMap<TransactionId, ArrayList<PageId>>();
         }
         
-        public void lockRequest(TransactionId tid, PageId pid, Permissions p) {
+        public void lockRequest(TransactionId tid, PageId pid, Permissions p) throws TransactionAbortedException {
+        	//System.out.println("Lock Request Called");
             boolean waiting = true;
+            long startTime = System.currentTimeMillis();
             
             while (waiting) {
-
+            	//System.out.println(System.currentTimeMillis() - startTime);
+            	if (System.currentTimeMillis() - startTime > 1000) { 
+            		throw new TransactionAbortedException();
+            	}
+            	//System.out.println("Why bro?");
                 synchronized (this) {
                     LockEntry l = lt.get(pid);
+                    //no lock entry for this page
                     if (l == null) {
                         l = new LockEntry(pid);
                         l.addTid(tid);
@@ -347,15 +357,21 @@ public class BufferPool {
                         updateThold(tid, pid, true);
                         waiting = false;
                     } else {
+                        
+                    	
+                    	//transaction has the lock and it either is requesting the same type of lock or wishes to have a shared lock
+                    	//when it already has an exclusive lock
                     	if (hasLock(tid, pid) && ((l.getType() == p) || (l.getType() == Permissions.READ_WRITE && p == Permissions.READ_ONLY))) {
                     		waiting = false;
                     	}
+                    	//transaction has lock and wants a lock upgrade
                     	else if (hasLock(tid, pid) && l.getType() == Permissions.READ_ONLY && p == Permissions.READ_WRITE) {
                     		//l.addUpgradeRequest(tid);
                             //lt.put(pid, l);
                             //updateTwait(tid, pid, true);
                     		waiting = false;
                     	}
+                    	//no transactions hold the lock
                     	else if (l.getType() == null) {
                             l.addTid(tid);
                             l.setType(p);
@@ -363,17 +379,18 @@ public class BufferPool {
                             updateThold(tid, pid, true);
                             waiting = false;
                         }
+                    	//wants a shared lock
                         else if (l.getType() == p && p == Permissions.READ_ONLY) {
                             l.addTid(tid);
                             lt.put(pid, l);
                             updateThold(tid, pid, true);
                             waiting = false;
                         } 
+                    	//wants an exclusive lock but another transaction already has the exclusive lock.
                         else if (l.getType() == Permissions.READ_WRITE || p == Permissions.READ_WRITE) {
                             updateTwait(tid, pid, true);
                             l.addRequest(tid);
                             lt.put(pid, l);
-                            //System.out.println("tid is:    " + tid + "   "+ "requesting is:   " +  lt.get(pid).requesting.toString());
                             if (!l.inUse() && (tid == lt.get(pid).requesting.getFirst())) {   
                                 l.addTid(tid);
                                 l.setType(p);
@@ -396,8 +413,9 @@ public class BufferPool {
         }
         
         public void lockRelease(TransactionId tid, PageId pid) {
-        	//System.out.println("Released!");
             LockEntry l = lt.get(pid);
+        	System.out.println(pid.toString() + "  Requesting: " + l.requesting);
+        	System.out.println(pid.toString() + "   Holding: " + l.holding);
             if (!l.holding.contains(tid)) {
                 return;
             }
@@ -405,8 +423,8 @@ public class BufferPool {
                 if (!(l == null)) {
                     updateThold(tid, pid, false);
                     l.removeTid(tid);
-                    lt.put(pid, l);
                     l.setUse(false);
+                    lt.put(pid, l);
                 }
             }
         }
@@ -421,6 +439,7 @@ public class BufferPool {
         	}
         	return false;
         }
+        
         
         
         public void updateTwait(TransactionId tid, PageId pid, boolean io) {
@@ -475,6 +494,7 @@ public class BufferPool {
                 inUse = false;
             }
             
+
             public boolean inUse() {
             	return inUse;
             }

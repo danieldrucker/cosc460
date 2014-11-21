@@ -5,38 +5,52 @@ After you complete lab 5, please answer the following questions.
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-	(Replace this text with your answer)
+	Daniel Drucker and Markos Georges
 
 2. What did you think of this assignment?
 
-	(Replace this text with your answer)
+	This assignment was definitely the most difficult of the labs we've encountered so far. We were able to get through about three
+	quarters of the lab with out many problems, but the last milestone of the lab, more specifically the deadlock detection and recovery 
+	was incredibly difficult to deal with.
 
 3. What was the hardest part of this assignment?
 
-	(Replace this text with your answer)
+	The hardest part of the lab for us was implementing the deadlocking detection and recovery. We felt that there wasn't enough time given
+	with available office hours to finish up the last milestone.
 
 4. Describe any missing or incomplete elements of your code.
 
-	(Replace this text with your answer)
+	We were unable to complete the deadlocking detection part of the lab. With the information given information in the lab, and the results
+	of the Unit tests our implementation of the timeout should work, but we kept running into an infinite loop of the TransactionAbortedExceptions,
+	the throwing of such exceptions should have indicated a deadlock and allowed the test to run to completion. We don't think we would have been able 
+	to remedy this problem even if we had spent several more hours analyzing the code without your assistance.
 
 5. Roughly how long did you spend working on this lab?
 
-	(Replace this text with your answer)
+	We spent about a full 30 hours working on the lab. The last 7-8 hours of the lab were dedicated solely to debugging our deadlock detection and recovery
+	implementation.
 
 6. Describe your lock manager implementation.  Here are some specific questions to answer:
 
 a) Where is your lock manager located?  (I.e., is it a separate class, part of BufferPool, etc.)
 
-	(Replace this text with your answer)
+	We created it as a part of the BufferPool class.
 
 b) What specific information do you store and how do you store it?  
 
-	(Replace this text with your answer)
+	We store a lock table, implemented as a hash Map of PageIds to LockEntries, and then two more hashMaps of TransactionIds to PageIds, one which indicated the locks on pages that a certain transaction was holding, and the other
+	indicated which locks on pages a transaction was waiting for. We created a lock entry class which consisted of an ArrayList of the holding transactions, a linkedList of the Requesting transactions, a permissions type, and an inUse
+	boolean. 
 
 c) Briefly describe what happens when a new transaction requests a page.  I.e., walk thru how the lock manager decides whether or not to grant the request.  Your description should reference the data structures that describe in part (b).
 
-	(Replace this text with your answer)
+	when a transaction requests a page, it goes into a spin-waiting while loop. If a lock entry for that page does not exist we initialize it and give it to the transaction. If an entry does exist for this page then we simply check whether
+	another transaction is holding the lock, if so we check the permissions, if its a shared lock, and the requesting transaction has read only permission we grant it the lock, otherwise we force the transaction into a spin wait until it becomes
+	available to that transaction. We implemented a timer, to ensure that no transaction was waiting too long. If so that transaction would abort itself and release all of its locks. 
 
 d) Briefly explain how you manage locks when inserting a tuple into a HeapFile.  In particular, how do you acquire/release locks when looking for a page to insert.
 
-	(Replace this text with your answer)
+	When a transaction is granted an exclusive lock on the page, it may proceed normally and do any writes it needs to to the page. When the transaction is looking for
+	the correct page to insert the tuple into, it acquires a read only lock on the pages that correspond to the table that we are looking to insert that tuple into. Once we
+	find the correct page to insert the tuple into, it requests a lock upgrade so that it can have exclusive rights to change the page. After the transaction has been completed it 
+	releases all of the locks it was holding onto. If it is aborted, it makes sure to delete itself from any requesting queues in the lock manager as well. 
