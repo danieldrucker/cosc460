@@ -154,10 +154,19 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
+		Catalog c = Database.getCatalog();
+
     	if (commit) {
+    		ArrayList<PageId> holding = BufferPool.getLockManager().thold.get(tid);
+    		if (holding != null) {
+    			System.out.println("getting here");
+    			for (PageId p_Id : holding) {
+    				Page page = bp.get(p_Id);
+    				page.setBeforeImage();
+    			}
+    		}
     		flushPages(tid);
     	} else {
-    		Catalog c = Database.getCatalog();
     		LinkedList<PageId> temp = this.dirtyQueue;
         	while (!temp.isEmpty()) {
         		PageId pid = temp.removeLast();
@@ -188,6 +197,7 @@ public class BufferPool {
     
     public void releaseRequest(TransactionId tid, PageId pid) {
     	BufferPool.getLockManager().updateTwait(tid, pid, false);
+    	BufferPool.getLockManager().lt.get(pid).removeReq(tid);
     }
 
     /**
@@ -245,12 +255,20 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         for (PageId pid : bp.keySet()) {
             HeapPage hp = (HeapPage)bp.get(pid);
+            
             if (hp.isDirty() != null) {
                 flushPage(pid);
             }
         }
 
     }
+    
+    
+    //public synchronized void flushAllPages() throws IOException {
+    	//for (TransactionId tid : BufferPool.getLockManager().thold.keySet()) {
+          //  flushPages(tid);
+       // }
+    //}
 
     /**
      * Remove the specific page id from the buffer pool.
@@ -259,8 +277,9 @@ public class BufferPool {
      * cache.
      */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // only necessary for lab6                                                                            // cosc460
+        bp.remove(pid);
+        cleanQueue.remove(pid);
+        dirtyQueue.remove(pid);
     }
 
     /**
@@ -276,8 +295,15 @@ public class BufferPool {
         if (hp == null){
             throw new IOException("page not found in BufferPool");
         }
+        // append an update record to the log, with 
+        // a before-image and after-image.
+        TransactionId dirtier = hp.isDirty();
+        if (dirtier != null){
+          Database.getLogFile().logWrite(dirtier, hp.getBeforeImage(), hp);
+          Database.getLogFile().force();
+        }
         hp.markDirty(false, hp.isDirty());
-
+        
         f.writePage(hp);
         
     }    
@@ -291,6 +317,9 @@ public class BufferPool {
     		PageId pid = temp.removeLast();
     		HeapPage hp = (HeapPage) bp.get(pid);
     		if (hp.isDirty() == tid) {
+    			if (holdsLock(tid, pid)) {
+    				releasePage(tid, pid);
+    			}
     			flushPage(pid);
     			System.out.println("flushed page - " + pid.toString());
     		}
@@ -362,6 +391,8 @@ public class BufferPool {
                     	//transaction has the lock and it either is requesting the same type of lock or wishes to have a shared lock
                     	//when it already has an exclusive lock
                     	if (hasLock(tid, pid) && ((l.getType() == p) || (l.getType() == Permissions.READ_WRITE && p == Permissions.READ_ONLY))) {
+                    		l.setType(p);
+                    		lt.put(pid, l);
                     		waiting = false;
                     	}
                     	//transaction has lock and wants a lock upgrade
@@ -369,6 +400,11 @@ public class BufferPool {
                     		//l.addUpgradeRequest(tid);
                             //lt.put(pid, l);
                             //updateTwait(tid, pid, true);
+                    		//System.out.println("trying to upgrade");
+                    		//if (l.holding.size() == 1) {
+                    			//l.setType(p);
+                    			//lt.put(pid, l);
+                    		//}
                     		waiting = false;
                     	}
                     	//no transactions hold the lock
@@ -410,12 +446,14 @@ public class BufferPool {
                     } catch (InterruptedException e) {}
                 }
             }
+            
         }
         
         public void lockRelease(TransactionId tid, PageId pid) {
             LockEntry l = lt.get(pid);
-        	System.out.println(pid.toString() + "  Requesting: " + l.requesting);
-        	System.out.println(pid.toString() + "   Holding: " + l.holding);
+        	//System.out.println(pid.toString() + "  Requesting: " + l.requesting);
+        	//System.out.println("Lock Type = "+ l.getType().toString());
+        	//System.out.println(pid.toString() + "   Holding: " + l.holding);
             if (!l.holding.contains(tid)) {
                 return;
             }
@@ -514,6 +552,10 @@ public class BufferPool {
             public void addRequest(TransactionId tid) {
             	requesting.remove(tid);
                 requesting.add(tid);
+            }
+            
+            public void removeReq(TransactionId tid) {
+            	requesting.remove(tid);
             }
             
             public TransactionId getFirst() {

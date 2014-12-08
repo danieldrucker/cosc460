@@ -93,7 +93,56 @@ class LogFileRecovery {
      * @throws java.io.IOException if tidToRollback has already committed
      */
     public void rollback(TransactionId tidToRollback) throws IOException {
-        readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+        //long file_start = readOnlyLog.getFilePointer();
+    	readOnlyLog.seek(readOnlyLog.length() - LogFile.LONG_SIZE); // undoing so move to end of logfile
+        
+    	boolean notDone = true;
+        int type;
+        long tid = tidToRollback.getId();  
+        
+        while (notDone) {
+        	long offset = readOnlyLog.readLong();
+        	readOnlyLog.seek(offset);
+        	type = readOnlyLog.readInt();
+        	long trans = readOnlyLog.readLong();
+        	if (trans == tid) {
+	        	switch (type) {
+		            case LogType.BEGIN_RECORD:
+		                if (trans == tid) {
+		                	notDone = false;
+		                }
+		                break;
+		            case LogType.COMMIT_RECORD:
+		            	throw new IOException("Transaction Already committed");
+		            case LogType.ABORT_RECORD:
+		                break;
+		            case LogType.UPDATE_RECORD:
+		            	if (trans == tid) {
+		            		System.out.println("found transaction update");
+		            		Page beforeImg = LogFile.readPageData(readOnlyLog);
+		            		print();
+
+			                int tabid =  beforeImg.getId().getTableId();
+			                DbFile f = Database.getCatalog().getDatabaseFile(tabid);
+			                beforeImg.setBeforeImage();
+			                f.writePage(beforeImg);
+			                Database.getBufferPool().discardPage(beforeImg.getId());
+			                
+			                //write CLR log
+			                LogFile clrWrite = Database.getLogFile();
+			                clrWrite.logCLR(tid, beforeImg);
+			                print();
+		            	}
+		                break;
+		            case LogType.CLR_RECORD:
+		                break;
+		            case LogType.CHECKPOINT_RECORD:
+		                break;
+	                }
+        	}
+	            readOnlyLog.seek(offset - LogFile.LONG_SIZE);
+        	
+        }
 
         // some code goes here
     }

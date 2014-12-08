@@ -31,6 +31,8 @@ public class LogPatchTest extends LogTestBase {
                 new HeapPageId(hf1.getId(), 0),
                 Permissions.READ_ONLY);
         Page before = p.getBeforeImage();
+        System.out.println(before.getPageData());
+        System.out.println(p.getPageData());
         assertTrue("Before image should be set upon commit",
                 Arrays.equals(p.getPageData(), before.getPageData()));
     }

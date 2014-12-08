@@ -5,17 +5,28 @@ Exercise 1.
 
 1. Briefly explain how logging is done in SimpleDB by describing when log records are written to the log.  Use Eclipse search tools to find all uses of the LogFile methods in the SimpleDB source code.
 
-    <Replace this text with your answer>
+    Logging is done, whenever a FlushPage.BufferPool is called, when a transaction is starting or completing or when log wishes to write a checkpoint. A LogXactionBegin is called whenever a new transaction
+    is starting up to keep in the log when transactions were started. LogWrite is called during a FlushPage, this is done so that any time a page is being written back to disk, a log record is kept of when 
+    the that page was updated and by which transaction and what values were in it before hand in the case of an abort. The LogCommit or LogAbort method is called when a transaction completes and is forced to
+    disk before the pages all of the pages that transaction are written to disk.
 
 
 2. Where is LogFile.force called?  You should include usages inside other LogFile methods.  For each usage, why is it important that force is called?
 
-    <Replace this text with your answer>
+    LogFile.force is called in BufferPool.flushpage because before you can actually flush the page you need to force the log. This is to maintain consistency with write-ahead
+    logging. It is also called in the logCheckpoint, logAbort, and logCommit methods in LogFile.java. 
+    In the case of a commit, it will ensure that the system knows this transaction committed, and all of its work  is sent to disk. If the system crashes the log will be able to redo the work of
+    the committed transaction.
+	In the case of an abort, it will ensure that the system knows this transaction aborted, and all of its work will be undone and is sent to disk. If the system crashes the log will be able to 
+	undo any of the work done by the aborted transaction.    
+    LogCheckpoint uses force so that way, everything up to this point has been written out to disk no matter which transactions are live. It ensures that the disk will be update according to
+    the most recent checkpoint.
 
 
 3. Where is setBeforeImage image called?  
 
-    <Replace this text with your answer>
+    SetBeforeImage is called in the TransactionComplete method of the BufferPool class when a commit is called, in the HeapPage class constructor,
+    and in Page.java.
 
 
 Exercise 4.
