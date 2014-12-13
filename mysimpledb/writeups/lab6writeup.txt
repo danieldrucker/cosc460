@@ -54,21 +54,23 @@ After you complete the lab, please answer the following questions.
 
 8. What is your name?  If you work with a partner, be sure to write both of your names.
 
-    <Replace this text with your answer>
+    Markos Georges and Daniel Drucker
 
 9. What did you think of this assignment?
 
-    <Replace this text with your answer>
+    This assignment was fairly straightforward once exercise 4 was deemed optional.
 
 10. What was the hardest part of this assignment?
 
-    <Replace this text with your answer>
+    The hardest part was just conceptualizing where the readOnlyLog pointer was and how to move it around in the log,
+    but once we figured that out the both the rollback and recover method were simple to implement.
 
 11. Describe any missing or incomplete elements of your code.
 
-    <Replace this text with your answer>
+    None for lab 6
 
 12. Roughly how long did you spend working on this lab?
 
-    <Replace this text with your answer>
+    We spent about 7 hours total working on this lab and an additional 5 hours debugging the rest of lab 5, although
+    we still can't see to get the last three TransactionTest.systemtest's to work. 
 

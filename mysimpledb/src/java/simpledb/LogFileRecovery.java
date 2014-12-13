@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.*;
 
 /**
  * @author mhay
@@ -93,7 +94,7 @@ class LogFileRecovery {
      * @throws java.io.IOException if tidToRollback has already committed
      */
     public void rollback(TransactionId tidToRollback) throws IOException {
-        //long file_start = readOnlyLog.getFilePointer();
+        long file_start = readOnlyLog.getFilePointer();
     	readOnlyLog.seek(readOnlyLog.length() - LogFile.LONG_SIZE); // undoing so move to end of logfile
         
     	boolean notDone = true;
@@ -140,11 +141,10 @@ class LogFileRecovery {
 		                break;
 	                }
         	}
-	            readOnlyLog.seek(offset - LogFile.LONG_SIZE);
-        	
+	        readOnlyLog.seek(offset - LogFile.LONG_SIZE);
         }
-
-        // some code goes here
+        Database.getLogFile().logAbort(tid);
+        readOnlyLog.seek(file_start);
     }
 
     /**
@@ -156,8 +156,101 @@ class LogFileRecovery {
      * the BufferPool are locked.
      */
     public void recover() throws IOException {
-
-        // some code goes here
-
+    	long file_start = readOnlyLog.getFilePointer();
+        long chkpt_offset = readOnlyLog.readLong();
+        ArrayList<Long> losers = new ArrayList<Long>();
+        ArrayList<Long> undone = new ArrayList<Long>();
+        
+        if (chkpt_offset != -1) {
+            readOnlyLog.seek(chkpt_offset + LogFile.INT_SIZE + LogFile.LONG_SIZE);
+            int count = readOnlyLog.readInt();
+            for (int i = 0; i < count; i++) {
+                long tid = readOnlyLog.readLong();
+                losers.add(tid);
+            }
+            readOnlyLog.readLong();
+        } 
+        
+        long curr_pos = readOnlyLog.getFilePointer();
+        
+        //redo
+        while (curr_pos < readOnlyLog.length()) {
+            int type = readOnlyLog.readInt();
+            long trans = readOnlyLog.readLong();
+            switch (type) {
+                case LogType.BEGIN_RECORD:
+                    losers.add(trans);
+                    break;
+                case LogType.COMMIT_RECORD:
+                    losers.remove(trans);
+                    break;
+                case LogType.ABORT_RECORD:
+                    losers.remove(trans);
+                    break;
+                case LogType.UPDATE_RECORD:
+                    Page beforeImg = LogFile.readPageData(readOnlyLog);
+                    Page afterImg = LogFile.readPageData(readOnlyLog);
+                    
+                    int tabId = beforeImg.getId().getTableId();
+                    DbFile f = Database.getCatalog().getDatabaseFile(tabId);
+                    beforeImg.setBeforeImage();
+                    f.writePage(afterImg);
+                    break;
+                case LogType.CLR_RECORD:
+                    Page clr_afterImg = LogFile.readPageData(readOnlyLog);
+                    int clr_tabId = clr_afterImg.getId().getTableId();
+                    DbFile clr_f = Database.getCatalog().getDatabaseFile(clr_tabId);
+                    clr_afterImg.setBeforeImage();
+                    clr_f.writePage(clr_afterImg);
+                    break;
+                case LogType.CHECKPOINT_RECORD:
+                    throw new IOException("No checkpoint logs should be encountered at this stage");
+            }
+            readOnlyLog.readLong(); //reads past the offset for the log
+            curr_pos = readOnlyLog.getFilePointer();
+        }
+        
+        readOnlyLog.seek(readOnlyLog.length() - LogFile.LONG_SIZE);
+        
+        //undo
+        while (!losers.isEmpty()) {
+            long offset = readOnlyLog.readLong();
+            readOnlyLog.seek(offset);
+            int type = readOnlyLog.readInt();
+            long trans = readOnlyLog.readLong();
+            if (losers.contains(trans)) {
+                switch (type) {
+                    case LogType.BEGIN_RECORD:
+                        losers.remove(trans);
+                        undone.add(trans);
+                        break;
+                    case LogType.COMMIT_RECORD:
+                        break;
+                    case LogType.ABORT_RECORD:
+                        break;
+                    case LogType.UPDATE_RECORD:
+                        Page beforeImg = LogFile.readPageData(readOnlyLog);
+                        int tabid =  beforeImg.getId().getTableId();
+                        DbFile f = Database.getCatalog().getDatabaseFile(tabid);
+                        beforeImg.setBeforeImage();
+                        f.writePage(beforeImg);
+                        
+                        //write CLR log
+                        LogFile clrWrite = Database.getLogFile();
+                        clrWrite.logCLR(trans, beforeImg);
+                        break;
+                    case LogType.CLR_RECORD:
+                        break;
+                    case LogType.CHECKPOINT_RECORD:
+                        break;
+                    }
+            }
+            readOnlyLog.seek(offset - LogFile.LONG_SIZE);       
+        }
+        
+        for (Long tid: undone) {
+            Database.getLogFile().logAbort(tid);
+        }
+        readOnlyLog.seek(file_start);
     }
 }

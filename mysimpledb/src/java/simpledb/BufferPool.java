@@ -3,6 +3,8 @@ package simpledb;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 
 
 /**
@@ -47,6 +49,7 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
+    	BufferPool.getLockManager().reset();
         this.pageLimit = numPages;
         this.bp = new ConcurrentHashMap<PageId,Page>();
         this.cleanQueue = new LinkedList<PageId>();
@@ -159,10 +162,11 @@ public class BufferPool {
     	if (commit) {
     		ArrayList<PageId> holding = BufferPool.getLockManager().thold.get(tid);
     		if (holding != null) {
-    			System.out.println("getting here");
     			for (PageId p_Id : holding) {
     				Page page = bp.get(p_Id);
-    				page.setBeforeImage();
+    				if (page != null) {
+    					page.setBeforeImage();
+    				}
     			}
     		}
     		flushPages(tid);
@@ -189,15 +193,23 @@ public class BufferPool {
 	    	}
     	}
     	if (releaseReq != null) {
-    		for (PageId pageId : releaseReq) {
-    			releaseRequest(tid, pageId);
+    		CopyOnWriteArrayList<PageId> list = new CopyOnWriteArrayList<PageId>();
+    		for (PageId p : releaseReq) {
+    			list.add(p);
+    		}
+    		synchronized (list) {
+    			Iterator<PageId> it = list.iterator();
+	    		while (it.hasNext()) {
+	    			PageId pageId = it.next();
+	    			releaseRequest(tid, pageId);
+	    		}
     		}
     	}
     }
     
     public void releaseRequest(TransactionId tid, PageId pid) {
-    	BufferPool.getLockManager().updateTwait(tid, pid, false);
-    	BufferPool.getLockManager().lt.get(pid).removeReq(tid);
+		//System.out.println("releasing requests");
+    	BufferPool.getLockManager().removeRequest(tid, pid);
     }
 
     /**
@@ -321,7 +333,6 @@ public class BufferPool {
     				releasePage(tid, pid);
     			}
     			flushPage(pid);
-    			System.out.println("flushed page - " + pid.toString());
     		}
     	}
         
@@ -365,16 +376,15 @@ public class BufferPool {
         }
         
         public void lockRequest(TransactionId tid, PageId pid, Permissions p) throws TransactionAbortedException {
-        	//System.out.println("Lock Request Called");
             boolean waiting = true;
+            boolean upgradeReq = false;
             long startTime = System.currentTimeMillis();
-            
+         
             while (waiting) {
             	//System.out.println(System.currentTimeMillis() - startTime);
-            	if (System.currentTimeMillis() - startTime > 1000) { 
+            	if (System.currentTimeMillis() - startTime > 100) { 
             		throw new TransactionAbortedException();
             	}
-            	//System.out.println("Why bro?");
                 synchronized (this) {
                     LockEntry l = lt.get(pid);
                     //no lock entry for this page
@@ -397,15 +407,19 @@ public class BufferPool {
                     	}
                     	//transaction has lock and wants a lock upgrade
                     	else if (hasLock(tid, pid) && l.getType() == Permissions.READ_ONLY && p == Permissions.READ_WRITE) {
-                    		//l.addUpgradeRequest(tid);
-                            //lt.put(pid, l);
-                            //updateTwait(tid, pid, true);
-                    		//System.out.println("trying to upgrade");
-                    		//if (l.holding.size() == 1) {
-                    			//l.setType(p);
-                    			//lt.put(pid, l);
-                    		//}
-                    		waiting = false;
+                        	System.out.println("holding: " + l.holding);
+                        	System.out.println("requesting: " + l.requesting);
+                    		if (l.holding.size() == 1) {
+                    			l.setType(p);
+                    			lt.put(pid, l);
+                    			waiting = false;
+                    		} else if (!upgradeReq) {
+                    			l.addUpgradeRequest(tid);
+                    			lt.put(pid, l);
+                    			updateTwait(tid, pid, true);
+                    			upgradeReq = true;
+                    		}
+                			
                     	}
                     	//no transactions hold the lock
                     	else if (l.getType() == null) {
@@ -417,24 +431,32 @@ public class BufferPool {
                         }
                     	//wants a shared lock
                         else if (l.getType() == p && p == Permissions.READ_ONLY) {
-                            l.addTid(tid);
-                            lt.put(pid, l);
-                            updateThold(tid, pid, true);
-                            waiting = false;
+                        	if (l.requesting.isEmpty() || l.getFirst() == tid) {
+                          		System.out.println("Giving shared!");
+                        		l.addTid(tid);
+                        		l.removeRequest();
+                        		lt.put(pid, l);
+                        		updateTwait(tid, pid, false);
+                        		updateThold(tid, pid, true);
+                        		waiting = false;
+                        	} else {
+	                        	l.addRequest(tid);
+	                            lt.put(pid, l);
+	                            updateTwait(tid, pid, true);
+                        	}
                         } 
                     	//wants an exclusive lock but another transaction already has the exclusive lock.
                         else if (l.getType() == Permissions.READ_WRITE || p == Permissions.READ_WRITE) {
                             updateTwait(tid, pid, true);
                             l.addRequest(tid);
                             lt.put(pid, l);
-                            if (!l.inUse() && (tid == lt.get(pid).requesting.getFirst())) {   
+                            if (l.holding.isEmpty() && (tid == lt.get(pid).requesting.getFirst())) {
                                 l.addTid(tid);
                                 l.setType(p);
                                 l.removeRequest();
                                 lt.put(pid, l);
                                 updateTwait(tid, pid, false);
                                 updateThold(tid, pid, true);
-                                l.setUse(true);
                                 waiting = false;
                             }
                         }
@@ -451,9 +473,6 @@ public class BufferPool {
         
         public void lockRelease(TransactionId tid, PageId pid) {
             LockEntry l = lt.get(pid);
-        	//System.out.println(pid.toString() + "  Requesting: " + l.requesting);
-        	//System.out.println("Lock Type = "+ l.getType().toString());
-        	//System.out.println(pid.toString() + "   Holding: " + l.holding);
             if (!l.holding.contains(tid)) {
                 return;
             }
@@ -461,7 +480,6 @@ public class BufferPool {
                 if (!(l == null)) {
                     updateThold(tid, pid, false);
                     l.removeTid(tid);
-                    l.setUse(false);
                     lt.put(pid, l);
                 }
             }
@@ -478,7 +496,12 @@ public class BufferPool {
         	return false;
         }
         
-        
+        public void removeRequest(TransactionId tid, PageId pid) {
+        	updateTwait(tid, pid, false);
+        	LockEntry l = lt.get(pid);
+        	l.removeReq(tid);
+        	lt.put(pid, l);
+        }
         
         public void updateTwait(TransactionId tid, PageId pid, boolean io) {
             if (io) {
@@ -493,8 +516,11 @@ public class BufferPool {
                     twait.put(tid, list);
                 }
             } else {
+            	if (!twait.containsKey(tid)) {
+            		return;
+            	}
                 ArrayList<PageId> list = twait.get(tid);
-                twait.remove(pid);
+                list.remove(pid);
                 twait.put(tid, list);
             }
         }
@@ -518,28 +544,24 @@ public class BufferPool {
             }
         }
         
+        public void reset() {
+        	lt.clear();
+        	twait.clear();
+        	thold.clear();
+        }
+        
         public class LockEntry {
             
             private ArrayList<TransactionId> holding;
             private Permissions lockType;
             private LinkedList<TransactionId> requesting;
-            private boolean inUse;
             
             public LockEntry(PageId pid) {
                 holding = new ArrayList<TransactionId>();
                 lockType = null;
                 requesting = new LinkedList<TransactionId>();
-                inUse = false;
             }
             
-
-            public boolean inUse() {
-            	return inUse;
-            }
-            
-            public void setUse(boolean u) {
-            	inUse = u;
-            }
              
             public void setType(Permissions perm) {
                 lockType = perm;
@@ -563,7 +585,11 @@ public class BufferPool {
             }
             
             public void removeRequest() {
-                requesting.removeFirst();
+            	if (requesting.isEmpty()) {
+            		return;
+            	} else {
+            		requesting.removeFirst();
+            	}
             }
             
             public void removeTid(TransactionId tid) {

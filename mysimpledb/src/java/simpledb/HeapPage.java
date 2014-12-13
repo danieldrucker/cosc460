@@ -244,7 +244,6 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-    	System.out.println( "money -    " + t.toString());
     	if (t.getRecordId() == null){
             throw new DbException("page is already empty");
         }
